@@ -112,7 +112,8 @@ app.delete('/chat/:id', async (req, res) => {
   if (!chat) {
     return res.send({ isValid: false, message: 'Invalid id' });
   }
-  if (chat.user != user_id) {
+  const globalchatadmin = await User.findOne({ username: 'globalchatkaadmin' });
+  if (chat.user != user_id && user_id != globalchatadmin._id) {
     return res.send({ isValid: false, message: 'Improper credentials' });
   }
   await Chat.findByIdAndDelete(id);
