@@ -89,6 +89,10 @@ app.post('/chat', async (req, res) => {
   if (user._id != id) {
     return res.send({ isValid: false, message: 'Improper credentials' });
   }
+  if (!createdAt) {
+    console.log('Time error, please try again.');
+    return res.send({ isValid: false, message: 'Invalid time' });
+  }
   const chat = new Chat({
     message,
     user,
