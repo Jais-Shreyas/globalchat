@@ -19,7 +19,6 @@ export default function Login({ dark, user, changeUser, showAlert }) {
     });
     try {
       const json = await response.json();
-      console.log("json", json);
       if (json.isValid) {
         showAlert('success', 'Welcome back!');
         changeUser(json.user.username);

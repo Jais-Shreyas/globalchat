@@ -82,7 +82,7 @@ export default function Chat({ dark, user }) {
   }
   const curDate = time().slice(0,12);
   return (<>
-    <div style={{ border: `5px solid ${dark ? 'white' : 'black'}`, borderRadius: '1rem', height: 'calc(100vh - 7rem)', overflowY: 'auto', overflowX: 'auto', scrollbarWidth: 'none', marginBottom: '3rem', marginTop: '0rem', padding: '1rem 1rem' }} className={`container ${dark ? 'bg-dark text-light' : 'bg-light text-dark'}`}>
+    <div style={{ border: `5px solid ${dark ? 'white' : 'black'}`, borderRadius: '1rem', height: 'calc(100vh - 7.5rem)', overflowY: 'auto', overflowX: 'auto', scrollbarWidth: 'none', marginBottom: '3rem', marginTop: '0rem', padding: '1rem 1rem' }} className={`container ${dark ? 'bg-dark text-light' : 'bg-light text-dark'}`}>
       {message.map((msg, i) => {
         const style = msg.user.username === user ? {
           whiteSpace: 'pre-wrap',
