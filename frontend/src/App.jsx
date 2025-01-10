@@ -9,7 +9,7 @@ import Chat from './Chat';
 
 function App() {
   const [dark, setDark] = useState(localStorage.getItem('dark') == 'true' ? true : false);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState({username: null, id: null});
   const [alert, setAlert] = useState(null);
   const showAlert = (type, message) => {
     setAlert({
@@ -21,7 +21,7 @@ function App() {
     }, 2500);
   }
   useEffect(() => {
-    const checkUser = localStorage.getItem('user');
+    const checkUser = JSON.parse(localStorage.getItem('user'));
     if (checkUser) {
       setUser(checkUser);
     }
@@ -31,7 +31,7 @@ function App() {
       localStorage.removeItem('user');
       setUser(null);
     } else {
-      localStorage.setItem('user', userr);
+      localStorage.setItem('user', JSON.stringify(userr));
       setUser(userr);
     }
   }

@@ -45,17 +45,24 @@ export default function Chat({ dark, user }) {
         headers: {
           'Content-type': 'application/json'
         },
-        body: JSON.stringify({ message: msg, username: user })
+        body: JSON.stringify({ message: msg, username: user.username, id: user.id })
       })
-      setMessage([...message, { message: msg, user: { username: user }, createdAt: time() }]);
+      setMessage([...message, { message: msg, username: user.username , createdAt: time() }]);
     } else {
       fetch(`${backendUrl}/chat/${id}?_method=PATCH`, {
         method: "POST",
         headers: {
           'Content-type': 'application/json'
         },
-        body: JSON.stringify({ message: msg })
+        body: JSON.stringify({ message: msg, user_id: user.id })
       });
+      const newmsg = message;
+      for (let i = 0; i < newmsg.length; i++) {
+        if (newmsg[i]._id === id) {
+          newmsg[i].message = msg;
+        }
+      }
+      setMessage(newmsg);
       toggleEditing(null, null)
     }
   }
@@ -71,7 +78,11 @@ export default function Chat({ dark, user }) {
   const deleteChat = (id) => {
     if (id) {
       fetch(`${backendUrl}/chat/${id}?_method=DELETE`, {
-        method: "POST"
+        method: "POST",
+        headers: {
+          'Content-type': 'application/json'
+        },
+        body: JSON.stringify({ user_id: user.id })
       });
       setMessage(message.filter(msg => msg._id !== id));
     }
@@ -84,7 +95,7 @@ export default function Chat({ dark, user }) {
   return (<>
     <div style={{ border: `5px solid ${dark ? 'white' : 'black'}`, borderRadius: '1rem', height: 'calc(100vh - 7.5rem)', overflowY: 'auto', overflowX: 'auto', scrollbarWidth: 'none', marginBottom: '3rem', marginTop: '0rem', padding: '1rem 1rem' }} className={`container ${dark ? 'bg-dark text-light' : 'bg-light text-dark'}`}>
       {message.map((msg, i) => {
-        const style = msg.user.username === user ? {
+        const style = msg.username === user.username ? {
           whiteSpace: 'pre-wrap',
           margin: '0.5rem 0 0.5rem 0',
           maxWidth: '70%',
@@ -103,7 +114,7 @@ export default function Chat({ dark, user }) {
         }
         return (
           <div key={msg._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'right' }}>
-            {(msg.user.username === user) &&
+            {(msg.username === user.username) &&
               <div className="dropdown">
                 <p className="btn btn-secondary dropdown-toggle mx-2" style={{ backgroundColor: 'transparent', color: dark ? 'white' : 'black', border: 'none' }} type="button" data-bs-toggle="dropdown" aria-expanded="false">
                 </p>
@@ -113,15 +124,15 @@ export default function Chat({ dark, user }) {
                 </ul>
               </div>
             }
-            <div key={msg._id} style={style} className={`${msg.user.username === user ? 'user' : 'notuser'} ${dark ? 'bg-light text-dark' : 'bg-dark text-light'} mt-0`}>
-              <small style={{ cursor: 'pointer', color: 'grey', textAlign: msg.user.username === user ? 'right' : 'left', display: 'block' }}>
-                {'  '}{msg.user.username === user ? 'You' : msg.user.username}{'  '}
+            <div key={msg._id} style={style} className={`${msg.username === user.username ? 'user' : 'notuser'} ${dark ? 'bg-light text-dark' : 'bg-dark text-light'} mt-0`}>
+              <small style={{ cursor: 'pointer', color: 'grey', textAlign: msg.username === user ? 'right' : 'left', display: 'block' }}>
+                {'  '}{msg.username === user.username ? 'You' : msg.username}{'  '}
                 {'\n'}
               </small>
               <div style={{ fontFamily: 'inherit' }}>{msg.message}</div>
               <small style={{ fontSize: '0.5rem', lineHeight: '0', color: 'grey', display: 'block', textAlign: 'right', marginTop: '0.5rem' }}>{msg.createdAt.slice(0, 12) === curDate ? msg.createdAt.slice(12) : msg.createdAt}</small>
             </div>  
-            {(user === admin && msg.user.username !== admin) && <p className='d-inline text-danger' onClick={() => deleteChat(msg._id)}><DeleteIcon /></p>}
+            {(user.username === admin && msg.username !== admin) && <p className='d-inline text-danger' onClick={() => deleteChat(msg._id)}><DeleteIcon /></p>}
           </div>
         )
       })}

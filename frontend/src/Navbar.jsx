@@ -1,9 +1,7 @@
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import { Link } from "react-router-dom"
-import { useState } from 'react';
 import Alert from './Alert';
-import rootShouldForwardProp from '@mui/material/styles/rootShouldForwardProp';
 export default function Navbar({ dark, changeMode, page = 'home', user, changeUser, alert, showAlert }) {
   return (
     <>
@@ -26,7 +24,7 @@ export default function Navbar({ dark, changeMode, page = 'home', user, changeUs
             <div className={`form-check form-switch nav-link ${dark ? 'text-light' : 'text-dark'}`}>
               <div onClick={changeMode} className="form-check-label" htmlFor="flexSwitchCheckChecked">{dark ? <DarkModeIcon /> : <LightModeIcon />} </div>
             </div>
-            {!user ? <>
+            {!user.username ? <>
               <li className="nav-item">
                 <Link className={`nav-link ${page === 'login' ? 'active' : ''}`} aria-current="page" to="/login">Login</Link>
               </li>
@@ -35,10 +33,10 @@ export default function Navbar({ dark, changeMode, page = 'home', user, changeUs
               </li>
             </> : <>
               <li className="nav-item">
-                <Link className={`nav-link ${page === 'home' ? 'active' : ''}`} aria-current="page" to="/">{user}</Link>
+                <Link className={`nav-link ${page === 'home' ? 'active' : ''}`} aria-current="page" to="/">{user.username}</Link>
               </li>
               <li className="nav-item">
-                <Link onClick={() => {changeUser(null); showAlert('success', 'Successfully logged out!!')}} className={`nav-link ${page === 'about' ? 'active' : ''}`} aria-current="page" to="/">Logout</Link>
+                <Link onClick={() => {changeUser({username: null, id: null}); showAlert('success', 'Successfully logged out!!')}} className={`nav-link ${page === 'about' ? 'active' : ''}`} aria-current="page" to="/">Logout</Link>
               </li>
             </>}
           </ul>

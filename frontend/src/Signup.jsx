@@ -21,7 +21,7 @@ export default function Signup({ dark, user, changeUser, alert, showAlert }) {
       const json = await response.json()
       if (!json.isValid) {
         showAlert('danger', json.message);
-        changeUser(null);
+        changeUser({user: null, id: null});
         navigate('/signup');
       } else {
         showAlert('success', 'Welcome to Global Chat!');
@@ -31,7 +31,7 @@ export default function Signup({ dark, user, changeUser, alert, showAlert }) {
     } catch (e) {
       console.log(e);
       showAlert('danger', e);
-      changeUser(null);
+      changeUser({user: null, id: null});
     }
   }
   return (

@@ -71,11 +71,14 @@ app.post('/signup', async (req, res, next) => {
 
 app.get('/chat', async (req, res) => {
   const chats = await Chat.find().populate('user');
-  res.send(chats || []);
+  const filteredChats = chats.map((chat, i) => {
+    return {_id: chat._id, message: chat.message, username: chat.user.username, createdAt: chat.createdAt};
+  });
+  res.send(filteredChats || []);
 });
 
 app.post('/chat', async (req, res) => {
-  const { message, username } = req.body;
+  const { message, username, id } = req.body;
   if (!username || !message) {
     return res.send({ isValid: false, message: 'Please login to chat' });
   }
@@ -83,16 +86,30 @@ app.post('/chat', async (req, res) => {
   if (!user) {
     return res.send({ isValid: false, message: 'Please login to chat' });
   }
+  if (user._id != id) {
+    return res.send({ isValid: false, message: 'Improper credentials' });
+  }
   const chat = new Chat({
     message,
     user
   });
   await chat.save();
-  res.send({ isValid: true, chat });
+  res.send({ isValid: true });
 });
 
 app.delete('/chat/:id', async (req, res) => {
   const { id } = req.params;
+  const { user_id } = req.body;
+  if (!id) {
+    return res.send({ isValid: false, message: 'Invalid id' });
+  }
+  const chat = await Chat.findById(id);
+  if (!chat) {
+    return res.send({ isValid: false, message: 'Invalid id' });
+  }
+  if (chat.user != user_id) {
+    return res.send({ isValid: false, message: 'Improper credentials' });
+  }
   await Chat.findByIdAndDelete(id);
   res.send({ isValid: true, id });
 });
@@ -102,20 +119,29 @@ app.patch('/chat/:id', async (req, res) => {
   if (!id) {
     return res.send({ isValid: false, message: 'Invalid id' });
   }
-  const { message } = req.body;
+  const { message, user_id } = req.body;
+  const chat = await Chat.findById(id);
+  if (!chat) {
+    return res.send({ isValid: false, message: 'Invalid id' });
+  }
+  // console.log(chat);
+  // console.log(user_id);
+  if (chat.user != user_id) {
+    return res.send({ isValid: false, message: 'Improper credentials' });
+  }
   await Chat.findByIdAndUpdate(id, { message });
   res.send({ isValid: true, id });
 });
 
-app.post('/logout', (req, res) => {
-  req.logout(function (err) {
-    if (err) {
-      console.log(err);
-      return next(err);
-    }
-    res.send({ isValid: true });
-  });
-});
+// app.post('/logout', (req, res) => {
+//   req.logout(function (err) {
+//     if (err) {
+//       console.log(err);
+//       return next(err);
+//     }
+//     res.send({ isValid: true });
+//   });
+// });
 
 
 app.listen(3000, () => {

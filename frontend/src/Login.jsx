@@ -21,18 +21,18 @@ export default function Login({ dark, user, changeUser, showAlert }) {
       const json = await response.json();
       if (json.isValid) {
         showAlert('success', 'Welcome back!');
-        changeUser(json.user.username);
+        changeUser({username: json.user.username, id: json.user._id});
         navigate('/');
       } else {
         showAlert('danger', json.message);
-        changeUser(null);
+        changeUser({user: null, id: null});
         navigate('/login');
       }
 
     } catch (e) {
       console.log(e);
       showAlert('danger', e);
-      changeUser(null);
+      changeUser({user: null, id: null});
       navigate('/login');
     }
   }
