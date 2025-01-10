@@ -9,7 +9,7 @@ export default function Navbar({ dark, changeMode, page = 'home', user, changeUs
     <>
     <nav className={`navbar sticky-top ${dark ? 'navbar-dark bg-dark' : 'navbar-light bg-light'} navbar-expand-md`}>
       <div className="container-fluid">
-        <a className="navbar-brand" href="#"><h4>Global Chat</h4></a>
+        <a className="navbar-brand" href="#"><h4><img style={{width:'2rem', borderRadius: '20%'}} src='/android-chrome-512x512.png'></img>Global Chat</h4></a>
         <button className={`navbar-toggler bg-${dark ? 'dark' : 'light'}`} type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
           <span className="navbar-toggler-icon"></span>
         </button>
@@ -23,7 +23,7 @@ export default function Navbar({ dark, changeMode, page = 'home', user, changeUs
             </li>
           </ul>
           <ul className="navbar-nav ms-auto mb-2 mb-sm-0">
-            <div className={`form-check form-switch nav-link ms-5 ${dark ? 'text-light' : 'text-dark'}`}>
+            <div className={`form-check form-switch nav-link ${dark ? 'text-light' : 'text-dark'}`}>
               <div onClick={changeMode} className="form-check-label" htmlFor="flexSwitchCheckChecked">{dark ? <DarkModeIcon /> : <LightModeIcon />} </div>
             </div>
             {!user ? <>
