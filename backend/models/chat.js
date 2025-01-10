@@ -17,7 +17,7 @@ const chatSchema = new mongoose.Schema({
   },
   createdAt: {
     type: String,
-    default: time
+    // default: time
   }
 });
 module.exports = mongoose.model('Chat', chatSchema);
