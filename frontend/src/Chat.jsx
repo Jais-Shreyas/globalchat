@@ -45,7 +45,7 @@ export default function Chat({ dark, user }) {
         headers: {
           'Content-type': 'application/json'
         },
-        body: JSON.stringify({ message: msg, username: user.username, id: user.id })
+        body: JSON.stringify({ message: msg, username: user.username, id: user.id, createdAt: time() })
       })
       setMessage([...message, { message: msg, username: user.username , createdAt: time() }]);
     } else {

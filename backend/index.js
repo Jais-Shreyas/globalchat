@@ -78,7 +78,7 @@ app.get('/chat', async (req, res) => {
 });
 
 app.post('/chat', async (req, res) => {
-  const { message, username, id } = req.body;
+  const { message, username, id, createdAt } = req.body;
   if (!username || !message) {
     return res.send({ isValid: false, message: 'Please login to chat' });
   }
@@ -91,7 +91,8 @@ app.post('/chat', async (req, res) => {
   }
   const chat = new Chat({
     message,
-    user
+    user,
+    createdAt
   });
   await chat.save();
   res.send({ isValid: true });

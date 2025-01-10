@@ -12,12 +12,11 @@ export default function Input({ dark, user, insertMessage, scroll, toggleScroll 
     }
     setText('');
   }
-  // console.log("Scroll in Input", scroll)
   return (
     <>
         
       <form onSubmit={(e) => { e.preventDefault(); handleSend() }} className={`container input-group mb-1 fixed-bottom`}>
-        {user ?
+        {user.username ?
           <>
             <input type="text" autoFocus placeholder="Enter your message" value={text} className={`form-control btn-outline-success ${dark ? 'text-light bg-dark' : 'text-dark bg-light'}`} onChange={(e) => handletext(e)} onSubmit={handleSend} aria-label="Your message" aria-describedby="button-addon2" />
           </> : <>
