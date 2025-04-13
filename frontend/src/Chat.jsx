@@ -4,6 +4,8 @@ import Edit from './Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import SwipeUpIcon from '@mui/icons-material/SwipeUp';
+import Markdown from 'react-markdown';
+
 export default function Chat({ dark, user }) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [message, setMessage] = useState([]);
@@ -129,7 +131,9 @@ export default function Chat({ dark, user }) {
                 {'  '}{msg.username === user.username ? 'You' : msg.username}{'  '}
                 {'\n'}
               </small>
-              <div style={{ fontFamily: 'inherit' }}>{msg.message}</div>
+              <div style={{ fontFamily: 'inherit' }}>
+                <Markdown children={(msg.message)} />
+              </div>
               <small style={{ fontSize: '0.5rem', lineHeight: '0', color: 'grey', display: 'block', textAlign: 'right', marginTop: '0.5rem' }}>{msg.createdAt.slice(0, 12) === curDate ? msg.createdAt.slice(12) : msg.createdAt}</small>
             </div>  
             {(user.username === admin && msg.username !== admin) && <p className='d-inline text-danger' onClick={() => deleteChat(msg._id)}><DeleteIcon /></p>}
