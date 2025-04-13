@@ -25,7 +25,7 @@ export default function Input({ dark, user, insertMessage, scroll, toggleScroll 
             <textarea
               rows={1}
               autoFocus
-              placeholder="Enter your message"
+              placeholder="Enter your message, Ctrl+Enter to send"
               value={text}
               className={`form-control btn-outline-success ${dark ? 'text-light bg-dark' : 'text-dark bg-light'}`}
               onChange={(e) => handletext(e)}
@@ -33,7 +33,6 @@ export default function Input({ dark, user, insertMessage, scroll, toggleScroll 
               aria-label="Your message"
               aria-describedby="button-addon2"
             ></textarea>
-            {/* <input type="text" autoFocus placeholder="Enter your message" value={text} className={`form-control btn-outline-success ${dark ? 'text-light bg-dark' : 'text-dark bg-light'}`} onChange={(e) => handletext(e)} onSubmit={handleSend} aria-label="Your message" aria-describedby="button-addon2" /> */}
           </> : <>
             <input type="text" disabled placeholder="Login required" value="" className={`form-control btn-outline-success ${dark ? 'text-light bg-dark' : 'text-dark bg-light'}`} onChange={(e) => handletext(e)} onSubmit={handleSend} aria-label="Your message" aria-describedby="button-addon2" />
           </>
