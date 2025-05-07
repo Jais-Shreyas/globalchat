@@ -8,7 +8,7 @@ import Markdown from 'react-markdown';
 
 export default function Chat({ dark, user }) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  const [message, setMessage] = useState([]);
+  const [message, setMessage] = useState([{ message: 'Loading...', username: 'Loading...', createdAt: 'Loading...' }]);
   const [scroll, setScroll] = useState(true);
   const admin = import.meta.env.VITE_ADMIN;
   const toggleScroll = () => {
@@ -49,7 +49,7 @@ export default function Chat({ dark, user }) {
         },
         body: JSON.stringify({ message: msg, username: user.username, id: user.id, createdAt: time() })
       })
-      setMessage([...message, { message: msg, username: user.username , createdAt: time() }]);
+      setMessage([...message, { message: msg, username: user.username, createdAt: time() }]);
     } else {
       fetch(`${backendUrl}/chat/${id}?_method=PATCH`, {
         method: "POST",
@@ -93,7 +93,7 @@ export default function Chat({ dark, user }) {
   const toggleEditing = (id, msg) => {
     setEditing({ id, msg });
   }
-  const curDate = time().slice(0,12);
+  const curDate = time().slice(0, 12);
   return (<>
     <div style={{ border: `5px solid ${dark ? 'white' : 'black'}`, borderRadius: '1rem', height: 'calc(100vh - 7.5rem)', overflowY: 'auto', overflowX: 'auto', scrollbarWidth: 'none', marginBottom: '3rem', marginTop: '0rem', padding: '1rem 1rem' }} className={`container ${dark ? 'bg-dark text-light' : 'bg-light text-dark'}`}>
       {message.map((msg, i) => {
@@ -115,7 +115,7 @@ export default function Chat({ dark, user }) {
           borderRadius: '0rem 1.5rem 1.5rem 1.5rem',
         }
         return (
-          <div key={msg._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'right' }}>
+          <div key={msg._id + 'chat'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'right' }}>
             {(msg.username === user.username) &&
               <div className="dropdown">
                 <p className="btn btn-secondary dropdown-toggle mx-2" style={{ backgroundColor: 'transparent', color: dark ? 'white' : 'black', border: 'none' }} type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -128,14 +128,14 @@ export default function Chat({ dark, user }) {
             }
             <div key={msg._id} style={style} className={`${msg.username === user.username ? 'user' : 'notuser'} ${dark ? 'bg-light text-dark' : 'bg-dark text-light'} mt-0`}>
               <small style={{ cursor: 'pointer', color: 'grey', textAlign: msg.username === user ? 'right' : 'left', display: 'block' }}>
-                {'  '}{msg.username === user.username ? 'You' : msg.username}{'  '}
+                {'- '}{msg.username === user.username ? 'You' : msg.username}{'  '}
                 {'\n'}
               </small>
               <div style={{ fontFamily: 'inherit' }}>
                 <Markdown children={(msg.message)} />
               </div>
-              <small style={{ fontSize: '0.5rem', lineHeight: '0', color: 'grey', display: 'block', textAlign: 'right', marginTop: '0.5rem' }}>{msg.createdAt.slice(0, 12) === curDate ? msg.createdAt.slice(12) : msg.createdAt}</small>
-            </div>  
+              <small style={{ fontSize: '0.5rem', lineHeight: '0', color: 'grey', display: 'block', textAlign: 'right', marginTop: '-0.7rem' }}>{(msg.createdAt.slice(0, 12) === curDate ? msg.createdAt.slice(12) : msg.createdAt).toUpperCase()}</small>
+            </div>
             {(user.username === admin && msg.username !== admin) && <p className='d-inline text-danger' onClick={() => deleteChat(msg._id)}><DeleteIcon /></p>}
           </div>
         )

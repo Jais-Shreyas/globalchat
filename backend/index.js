@@ -8,21 +8,22 @@ app.use(methodOverride('_method'));
 const dotenv = require('dotenv');
 dotenv.config();
 
-
 const cors = require('cors');
+app.use(cors({ origin: process.env.VITE_FRONTEND_URL, credentials: true }));
 
-app.use(cors(process.env.VITE_FRONTEND_URL));
-
+let allChatsCache = [];
 const mongoose = require('mongoose');
-
 const mongoUri = process.env.VITE_MONGO_URI;
-
-
 async function run() {
   try {
     mongoose.connect(mongoUri);
   } finally {
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    allChatsCache = await Chat.find().populate('user');
+    allChatsCache = allChatsCache.map((chat, i) => {
+      return { _id: chat._id, message: chat.message, username: chat.user.username, createdAt: chat.createdAt };
+    });
+    console.log("All chats cached successfully!");
   }
 }
 run().catch(console.dir);
@@ -68,13 +69,8 @@ app.post('/signup', async (req, res, next) => {
   }
 });
 
-
 app.get('/chat', async (req, res) => {
-  const chats = await Chat.find().populate('user');
-  const filteredChats = chats.map((chat, i) => {
-    return {_id: chat._id, message: chat.message, username: chat.user.username, createdAt: chat.createdAt};
-  });
-  res.send(filteredChats || []);
+  return res.send(allChatsCache || []);
 });
 
 app.post('/chat', async (req, res) => {
@@ -98,7 +94,9 @@ app.post('/chat', async (req, res) => {
     user,
     createdAt
   });
-  await chat.save();
+  const inserted = await chat.save();
+  console.log(inserted);
+  allChatsCache.push({ _id: inserted._id, message: inserted.message, username: inserted.user.username, createdAt: inserted.createdAt })
   res.send({ isValid: true });
 });
 
@@ -117,6 +115,7 @@ app.delete('/chat/:id', async (req, res) => {
     return res.send({ isValid: false, message: 'Improper credentials' });
   }
   await Chat.findByIdAndDelete(id);
+  allChatsCache = allChatsCache.filter((chat) => chat._id != id);
   res.send({ isValid: true, id });
 });
 
@@ -136,6 +135,12 @@ app.patch('/chat/:id', async (req, res) => {
     return res.send({ isValid: false, message: 'Improper credentials' });
   }
   await Chat.findByIdAndUpdate(id, { message });
+  allChatsCache = allChatsCache.map((chat) => {
+    if (chat._id == id) {
+      chat.message = message;
+    }
+    return chat;
+  });
   res.send({ isValid: true, id });
 });
 

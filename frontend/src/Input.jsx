@@ -12,7 +12,10 @@ export default function Input({ dark, user, insertMessage, scroll, toggleScroll 
     setText('');
   }
   const handleKeyDown = (e) => {
-    if (e.ctrlKey && e.key === 'Enter') {
+    if (e.shiftKey) {
+      return;
+    }
+    if (e.key === 'Enter') {
       e.preventDefault();
       handleSend();
     }
@@ -25,7 +28,7 @@ export default function Input({ dark, user, insertMessage, scroll, toggleScroll 
             <textarea
               rows={1}
               autoFocus
-              placeholder="Enter your message, Ctrl+Enter to send"
+              placeholder="Enter your message"
               value={text}
               className={`form-control btn-outline-success ${dark ? 'text-light bg-dark' : 'text-dark bg-light'}`}
               onChange={(e) => handletext(e)}
