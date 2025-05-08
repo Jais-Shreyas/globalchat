@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom';
+import ContinueWithGoogleButton from './ContinueWithGoogleButton';
 
 export default function Signup({ dark, user, changeUser, alert, showAlert }) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -21,17 +22,18 @@ export default function Signup({ dark, user, changeUser, alert, showAlert }) {
       const json = await response.json()
       if (!json.isValid) {
         showAlert('danger', json.message);
-        changeUser({user: null, id: null});
+        changeUser({ user: null, name: null, id: null, email: null });
         navigate('/signup');
       } else {
         showAlert('success', 'Welcome to Global Chat!');
-        changeUser(json.user.username);
+        changeUser({ username: json.user.username, name: json.user.name, id: json.user._id, email: json.user.email });
+        localStorage.setItem('user', JSON.stringify({ username: json.user.username, name: json.user.name, id: json.user._id, email: json.user.email }));
         navigate('/');
       }
     } catch (e) {
       console.log(e);
       showAlert('danger', e);
-      changeUser({user: null, id: null});
+      changeUser({ user: null, name: null, id: null, email: null });
     }
   }
   return (
@@ -59,6 +61,14 @@ export default function Signup({ dark, user, changeUser, alert, showAlert }) {
               </div>
               <div className="d-grid">
                 <button type="submit" className="btn btn-primary">SignUp</button>
+              </div>
+              <div className='d-flex justify-content-center mt-3'>
+                <div className='' style={{ width: '35%', height: '0.1rem', marginTop: '0.7rem', backgroundColor: 'black' }}></div>
+                <p style={{ padding: '0 1rem' }}>Or</p>
+                <div className='' style={{ width: '35%', height: '0.1rem', marginTop: '0.7rem', backgroundColor: 'black' }}></div>
+              </div>
+              <div className="d-grid mb-3">
+                <ContinueWithGoogleButton />
               </div>
             </form>
           </div>

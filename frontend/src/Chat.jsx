@@ -5,6 +5,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import SwipeUpIcon from '@mui/icons-material/SwipeUp';
 import Markdown from 'react-markdown';
+import { Link } from 'react-router-dom';
 
 export default function Chat({ dark, user }) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -68,7 +69,6 @@ export default function Chat({ dark, user }) {
       toggleEditing(null, null)
     }
   }
-  const visible = useRef(null);
   const messagesEndRef = useRef(null);
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -77,9 +77,9 @@ export default function Chat({ dark, user }) {
     scrollToBottom()
   }, [message]);
 
-  const deleteChat = (id) => {
+  const deleteChat = async (id) => {
     if (id) {
-      fetch(`${backendUrl}/chat/${id}?_method=DELETE`, {
+      await fetch(`${backendUrl}/chat/${id}?_method=DELETE`, {
         method: "POST",
         headers: {
           'Content-type': 'application/json'
@@ -93,7 +93,16 @@ export default function Chat({ dark, user }) {
   const toggleEditing = (id, msg) => {
     setEditing({ id, msg });
   }
-  const curDate = time().slice(0, 12);
+  const curDate = time().slice(0, 11);
+  const showTime = (date) => {
+    const d = new Date(date);
+    const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (d.toDateString().slice(4) !== curDate) {
+      return d.toDateString().slice(4) + ' ' + time;
+    } else {
+      return time;
+    }
+  }
   return (<>
     <div style={{ border: `5px solid ${dark ? 'white' : 'black'}`, borderRadius: '1rem', height: 'calc(100vh - 7.5rem)', overflowY: 'auto', overflowX: 'auto', scrollbarWidth: 'none', marginBottom: '3rem', marginTop: '0rem', padding: '1rem 1rem' }} className={`container ${dark ? 'bg-dark text-light' : 'bg-light text-dark'}`}>
       {message.map((msg, i) => {
@@ -127,16 +136,16 @@ export default function Chat({ dark, user }) {
               </div>
             }
             <div key={msg._id} style={style} className={`${msg.username === user.username ? 'user' : 'notuser'} ${dark ? 'bg-light text-dark' : 'bg-dark text-light'} mt-0`}>
-              <small style={{ cursor: 'pointer', color: 'grey', textAlign: msg.username === user ? 'right' : 'left', display: 'block' }}>
-                {'- '}{msg.username === user.username ? 'You' : msg.username}{'  '}
+              <Link to={`/profile/${msg.username}`} style={{ textDecoration: 'none', color: 'grey', textAlign: msg.username === user ? 'right' : 'left', display: 'block' }}>
+                {'- '}{msg.username === user.username ? 'You' : msg.name}{'  '}
                 {'\n'}
-              </small>
+              </Link>
               <div style={{ fontFamily: 'inherit' }}>
                 <Markdown children={(msg.message)} />
               </div>
-              <small style={{ fontSize: '0.5rem', lineHeight: '0', color: 'grey', display: 'block', textAlign: 'right', marginTop: '-0.7rem' }}>{(msg.createdAt.slice(0, 12) === curDate ? msg.createdAt.slice(12) : msg.createdAt).toUpperCase()}</small>
+              <small style={{ fontSize: '0.5rem', lineHeight: '0', color: 'grey', display: 'block', textAlign: 'right', marginTop: '-0.7rem' }}>{showTime(msg.createdAt)}</small>
             </div>
-            {(user.username === admin && msg.username !== admin) && <p className='d-inline text-danger' onClick={() => deleteChat(msg._id)}><DeleteIcon /></p>}
+            {(user.email === admin) && <p className='d-inline text-danger' onClick={() => deleteChat(msg._id)}><DeleteIcon /></p>}
           </div>
         )
       })}

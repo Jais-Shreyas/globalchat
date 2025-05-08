@@ -6,10 +6,24 @@ import About from './About';
 import Login from './Login';
 import Signup from './Signup';
 import Chat from './Chat';
-
+import Dashboard from './dashboard';
+import Profile from './Profile';
 function App() {
   const [dark, setDark] = useState(localStorage.getItem('dark') == 'true' ? true : false);
-  const [user, setUser] = useState({ username: null, id: null });
+  const initialFetchUser = () => {
+    try {
+      const checkUser = JSON.parse(localStorage.getItem('user'));
+      if (checkUser) {
+        return (checkUser);
+      } else {
+        return ({ username: null, name: null, id: null, email: null });
+      }
+    } catch (e) {
+      console.log(e);
+      return ({ username: null, name: null, id: null, email: null });
+    }
+  }
+  const [user, setUser] = useState(initialFetchUser);
   const [alert, setAlert] = useState(null);
   const showAlert = (type, message) => {
     setAlert({
@@ -20,23 +34,10 @@ function App() {
       setAlert(null);
     }, 2500);
   }
-  useEffect(() => {
-    try {
-      const checkUser = JSON.parse(localStorage.getItem('user'));
-      if (checkUser) {
-        setUser(checkUser);
-      } else {
-        setUser({username: null, id: null});
-      }
-    } catch (e) {
-      console.log(e);
-      setUser({username: null, id: null});
-    }
-  }, []);
   const changeUser = (userr) => {
     if (!userr) {
       localStorage.removeItem('user');
-      setUser({username: null, id: null});
+      setUser({ username: null, name: null, id: null, email: null });
     } else {
       localStorage.setItem('user', JSON.stringify(userr));
       setUser(userr);
@@ -90,6 +91,22 @@ function App() {
         <>
           <Navbar page='signup' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
           <Signup dark={dark} user={user} changeUser={changeUser} showAlert={showAlert} />
+        </>
+    },
+    {
+      path: "/dashboard",
+      element:
+        <>
+          <Navbar page='dashboard' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
+          <Dashboard dark={dark} user={user} changeUser={changeUser} showAlert={showAlert} />
+        </>
+    },
+    {
+      path: "/profile/:username",
+      element:
+        <>
+          <Navbar page='profile' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
+          <Profile dark={dark} user={user} changeUser={changeUser} showAlert={showAlert} />
         </>
     }
   ]);
