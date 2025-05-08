@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom';
 
-export default function Dashboard({ dark, user, changeUser, alert, showAlert }) {
+export default function dashboard({ dark, user, changeUser, alert, showAlert }) {
   const Navigate = useNavigate();
   useEffect(() => {
     const getUser = async () => {

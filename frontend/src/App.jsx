@@ -6,8 +6,8 @@ import About from './About';
 import Login from './Login';
 import Signup from './Signup';
 import Chat from './Chat';
-import Dashboard from './Dashboard';
 import Profile from './Profile';
+import dashboard from './dashboard';
 function App() {
   const [dark, setDark] = useState(localStorage.getItem('dark') == 'true' ? true : false);
   const initialFetchUser = () => {
@@ -98,7 +98,7 @@ function App() {
       element:
         <>
           <Navbar page='dashboard' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
-          <Dashboard dark={dark} user={user} changeUser={changeUser} showAlert={showAlert} />
+          <dashboard dark={dark} user={user} changeUser={changeUser} showAlert={showAlert} />
         </>
     },
     {
