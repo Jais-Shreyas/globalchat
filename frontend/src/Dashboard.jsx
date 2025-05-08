@@ -14,7 +14,7 @@ export default function Dashboard({ dark, user, changeUser, alert, showAlert }) 
       });
       const user = await userRes.json();
       if (user.good) {
-        // console.log(user);
+        console.log(user);
         changeUser({ username: user.username, name: user.name, id: user._id, email: user.email });
         localStorage.setItem('user', JSON.stringify({ username: user.username, name: user.name, id: user._id, email: user.email }));
         Navigate('/');
@@ -27,9 +27,9 @@ export default function Dashboard({ dark, user, changeUser, alert, showAlert }) 
     }
     getUser();
   }, []);
-  useEffect(() => {
-    Navigate('/');
-  }, []);
+  // useEffect(() => {
+  //   // Navigate('/');
+  // }, []);
   return (
     <div>
       {"You are not supposed to be here, kindly refresh the page."}

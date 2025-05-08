@@ -201,7 +201,7 @@ app.patch('/profile/:id', async (req, res) => {
     return res.send({ isValid: false, message: 'Invalid Credentials' });
   }
   const checkNewUser = await User.findOne({ username: newUsername });
-  if (checkNewUser) {
+  if (checkNewUser && oldUsername != newUsername) {
     return res.send({ isValid: false, message: 'Username already taken, please try another one.' });
   }
   const updatedData = await User.findByIdAndUpdate(id, { username: newUsername, name: newName }, { new: true });
@@ -284,6 +284,15 @@ app.patch('/chat/:id', async (req, res) => {
     return chat;
   });
   res.send({ isValid: true, id });
+});
+const path = require('path');
+
+// Serve static files from the React app
+app.use(express.static(path.join(__dirname, 'client', 'dist'))); // change 'dist' if using CRA
+
+// The "catchall" handler: for any request that doesn't match above, send back React's index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
 });
 
 app.listen(3000, () => {

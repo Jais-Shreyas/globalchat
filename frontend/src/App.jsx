@@ -108,6 +108,14 @@ function App() {
           <Navbar page='profile' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
           <Profile dark={dark} user={user} changeUser={changeUser} showAlert={showAlert} />
         </>
+    },
+    {
+      path: "*",
+      element:
+        <>
+          <Navbar page='home' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
+          <Chat dark={dark} user={user} showAlert={showAlert} />
+        </>
     }
   ]);
   return (
