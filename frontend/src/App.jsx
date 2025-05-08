@@ -7,7 +7,7 @@ import Login from './Login';
 import Signup from './Signup';
 import Chat from './Chat';
 import Profile from './Profile';
-import dashboard from './dashboard';
+import Dash from './Dash';
 function App() {
   const [dark, setDark] = useState(localStorage.getItem('dark') == 'true' ? true : false);
   const initialFetchUser = () => {
@@ -98,7 +98,7 @@ function App() {
       element:
         <>
           <Navbar page='dashboard' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
-          <dashboard dark={dark} user={user} changeUser={changeUser} showAlert={showAlert} />
+          <Dash dark={dark} user={user} changeUser={changeUser} showAlert={showAlert} />
         </>
     },
     {

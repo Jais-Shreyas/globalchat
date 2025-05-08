@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom';
 
-export default function dashboard({ dark, user, changeUser, alert, showAlert }) {
+function Dash({ dark, user, changeUser, alert, showAlert }) {
   const Navigate = useNavigate();
   useEffect(() => {
     const getUser = async () => {
@@ -14,7 +14,7 @@ export default function dashboard({ dark, user, changeUser, alert, showAlert }) 
       });
       const user = await userRes.json();
       if (user.good) {
-        console.log(user);
+        console.log("User found");
         changeUser({ username: user.username, name: user.name, id: user._id, email: user.email });
         localStorage.setItem('user', JSON.stringify({ username: user.username, name: user.name, id: user._id, email: user.email }));
         Navigate('/');
@@ -27,12 +27,14 @@ export default function dashboard({ dark, user, changeUser, alert, showAlert }) 
     }
     getUser();
   }, []);
-  // useEffect(() => {
-  //   // Navigate('/');
-  // }, []);
+  useEffect(() => {
+    // Navigate('/');
+  }, []);
   return (
     <div>
       {"You are not supposed to be here, kindly refresh the page."}
     </div>
   )
 }
+
+export default Dash
