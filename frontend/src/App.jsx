@@ -6,7 +6,7 @@ import About from './About';
 import Login from './Login';
 import Signup from './Signup';
 import Chat from './Chat';
-import Dashboard from './dashboard';
+import Dashboard from './Dashboard';
 import Profile from './Profile';
 function App() {
   const [dark, setDark] = useState(localStorage.getItem('dark') == 'true' ? true : false);
