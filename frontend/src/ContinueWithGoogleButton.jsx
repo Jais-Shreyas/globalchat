@@ -1,8 +1,43 @@
 import React from 'react'
 import './ContinueWithGoogleButton.css'
-const ContinueWithGoogleButton = () => {
+import { auth, provider, signInWithPopup } from './firebase'
+import { useNavigate } from 'react-router-dom'
+
+const ContinueWithGoogleButton = ({ changeUser, showAlert }) => {
+  const navigate = useNavigate();
+  const handleLogin = async () => {
+    try {
+      await signInWithPopup(auth, provider);
+      const user = auth.currentUser;
+      const { displayName, email } = user;
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/googlelogin`, {
+        method: "POST",
+        headers: {
+          'Content-type': 'application/json'
+        },
+        body: JSON.stringify({ name: displayName, email })
+      });
+      const json = await response.json();
+      if (json.isValid) {
+        changeUser({ username: json.user.username, name: json.user.name, id: json.user._id, email: json.user.email });
+        navigate('/');
+        showAlert('success', 'Welcome back!');
+      } else {
+        changeUser({ user: null, name: null, id: null, email: null });
+        showAlert('danger', json.message);
+      }
+    } catch (error) {
+      const errorCode = error.code;
+      const errorMessage = error.message;
+      const email = error.customData.email;
+      const credential = GoogleAuthProvider.credentialFromError(error);
+      console.error('Error during Google sign-in:', errorCode, errorMessage, email, credential);
+      changeUser({ user: null, name: null, id: null, email: null });
+      showAlert('danger', errorMessage);
+    }
+  }
   return (
-    <div onClick={() => { window.open(`${import.meta.env.VITE_BACKEND_URL}/auth/google`, '_self') }}>
+    <div onClick={handleLogin}>
       <button className="gsi-material-button">
         <div className="gsi-material-button-state"></div>
         <div className="gsi-material-button-content-wrapper">
@@ -16,7 +51,6 @@ const ContinueWithGoogleButton = () => {
             </svg>
           </div>
           <span className="gsi-material-button-contents btn">Continue with Google</span>
-          <span style={{ display: 'none' }}>Continue with Google</span>
         </div>
       </button>
     </div>

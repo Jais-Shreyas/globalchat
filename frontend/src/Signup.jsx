@@ -67,10 +67,10 @@ export default function Signup({ dark, user, changeUser, alert, showAlert }) {
                 <p style={{ padding: '0 1rem' }}>Or</p>
                 <div className='' style={{ width: '35%', height: '0.1rem', marginTop: '0.7rem', backgroundColor: 'black' }}></div>
               </div>
-              <div className="d-grid mb-3">
-                <ContinueWithGoogleButton />
-              </div>
             </form>
+              <div className="d-grid mb-3 mx-4">
+                <ContinueWithGoogleButton changeUser={changeUser} showAlert={showAlert} />
+              </div>
           </div>
         </div>
       </div>

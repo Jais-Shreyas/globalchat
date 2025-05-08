@@ -2,8 +2,6 @@ const express = require('express');
 const app = express();
 const dotenv = require('dotenv');
 dotenv.config();
-const session = require('express-session');
-
 
 const User = require('./models/user');
 const Chat = require('./models/chat');
@@ -28,9 +26,9 @@ const refreshChat = async () => {
   });
 }
 const mongoose = require('mongoose');
-const mongoUri = process.env.VITE_MONGO_URI;
 async function run() {
   try {
+    const mongoUri = process.env.VITE_MONGO_URI;
     mongoose.connect(mongoUri);
   } finally {
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
@@ -39,66 +37,30 @@ async function run() {
   }
 }
 run().catch(console.dir);
-const passport = require('passport');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
-
-passport.use(new GoogleStrategy({
-  clientID: process.env.GOOGLE_CLIENT_ID,
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: `${process.env.VITE_BACKEND_URL}/auth/google/callback`,
-}, async (accessToken, refreshToken, profile, done) => {
-  // console.log(profile);
-  const userFound = await User.findOne({ email: profile._json.email });
-  if (!userFound) {
-    const user = new User({
-      authType: 'google',
-      name: profile._json.name,
-      email: profile._json.email,
-      username: profile._json.email.split('@')[0] + Math.floor(Math.random() * 1000 + 1),
-      googleId: profile.id
-    });
-    await user.save();
-    done(null, user);
-  } else {
-    done(null, userFound);
-  }
-}));
-passport.serializeUser((user, done) => { done(null, user); });
-passport.deserializeUser((user, done) => { done(null, user); });
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(session({
-  secret: 'secret',
-  resave: true,
-  saveUninitialized: true,
-  cookie: { secure: process.env.NODE_ENV === 'production', maxAge: 24 * 60 * 60 * 1000 }
-}));
-app.use(passport.initialize());
-app.use(passport.session());
 
-app.get('/auth/google',
-  passport.authenticate('google', { scope: ['profile', 'email'] })
-);
-app.get('/auth/google/callback',
-  passport.authenticate('google', {
-    successRedirect: process.env.VITE_FRONTEND_URL,
-    failureRedirect: process.env.VITE_FRONTEND_URL
-  })
-);
-app.get('/auth/user', (req, res) => {
-  if (req.isAuthenticated()) {
-    res.json({ good: true, ...req.user });
+app.post('/googlelogin', async (req, res) => {
+  const { name, email } = req.body;
+  if (!name || !email) {
+    return res.send({ isValid: false, message: 'Invalid credentials' });
+  }
+  const user = await User.findOne({ email });
+  if (!user) {
+    const username = email.split('@')[0] + Math.floor(Math.random() * 1000 + 1);
+    const newUser = new User({
+      authType: 'google',
+      name,
+      email,
+      username
+    });
+    await newUser.save();
+    res.send({ isValid: true, user: newUser });
   } else {
-    res.status(401).json({ good: false, message: 'Not authenticated' });
+    res.send({ isValid: true, user: { name: user.name, email: user.email, _id: user._id, username: user.username } });
   }
 });
-app.get('/auth/logout', (req, res) => {
-  req.logout(() => {
-    res.redirect(process.env.VITE_FRONTEND_URL);
-  });
-});
-
 
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
@@ -112,7 +74,7 @@ app.post('/login', async (req, res) => {
     }
     bcrypt.compare(password, user.password, function (err, result) {
       if (result) {
-        res.send({ isValid: true, user });
+        res.send({ isValid: true, user: { name: user.name, email: user.email, _id: user._id, username: user.username } });
       } else {
         res.send({ isValid: false, message: 'Invalid username or password' });
       }
@@ -124,7 +86,7 @@ app.post('/login', async (req, res) => {
     }
     bcrypt.compare(password, user.password, function (err, result) {
       if (result) {
-        res.send({ isValid: true, user });
+        res.send({ isValid: true, user: { name: user.name, email: user.email, _id: user._id, username: user.username } });
       } else {
         res.send({ isValid: false, message: 'Invalid username or password' });
       }
@@ -147,7 +109,7 @@ app.post('/signup', async (req, res, next) => {
     const hash = await bcrypt.hash(password, 12);
     user.password = hash;
     await user.save();
-    res.send({ isValid: true, user });
+    res.send({ isValid: true, user: { name: user.name, email: user.email, _id: user._id, username: user.username } });
   } catch (e) {
     console.log(e)
     res.send({ isValid: false, message: 'Something went wrong' });
@@ -165,7 +127,6 @@ app.get('/profile/:username/:id', async (req, res) => {
     return res.send({ isValid: false, message: 'Invalid username' });
   }
   if (user._id != id) {
-    // console.log("Others data");
     res.send({
       isValid: true,
       user: {
@@ -174,7 +135,6 @@ app.get('/profile/:username/:id', async (req, res) => {
       }
     })
   } else {
-    // console.log("Self data");
     res.send({
       isValid: true,
       user: {
@@ -238,7 +198,6 @@ app.post('/chat', async (req, res) => {
     createdAt
   });
   const inserted = await chat.save();
-  // console.log(inserted);
   allChatsCache.push({ _id: inserted._id, message: inserted.message, username: inserted.user.username, name: inserted.user.name, createdAt: inserted.createdAt })
   res.send({ isValid: true });
 });
@@ -283,15 +242,6 @@ app.patch('/chat/:id', async (req, res) => {
     return chat;
   });
   res.send({ isValid: true, id });
-});
-const path = require('path');
-
-// Serve static files from the React app
-app.use(express.static(path.join(__dirname, 'client', 'dist'))); // change 'dist' if using CRA
-
-// The "catchall" handler: for any request that doesn't match above, send back React's index.html
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
 });
 
 app.listen(3000, () => {
