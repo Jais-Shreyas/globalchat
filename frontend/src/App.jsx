@@ -18,6 +18,7 @@ function App() {
       credentials: 'include'
     });
     const user = await userRes.json();
+    console.log("User", user);
     if (user.good) {
       return({ username: user.username, name: user.name, id: user._id, email: user.email });
     } else {
