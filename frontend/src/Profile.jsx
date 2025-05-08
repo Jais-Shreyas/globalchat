@@ -110,7 +110,7 @@ export default function Profile({ user, changeUser, dark, showAlert }) {
             </div>
             {user.username === userData.username && <div>
               {isEditing ?
-                <div className='flex justify-content-center'>
+                <div className='mx-4'>
                   <button className="btn btn-danger" onClick={handleCancel}>Cancel</button>
                   <button className="btn btn-success mx-4" onClick={handleSubmit}>Save</button>
                 </div>
