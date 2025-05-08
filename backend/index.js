@@ -62,7 +62,6 @@ passport.use(new GoogleStrategy({
   } else {
     done(null, userFound);
   }
-  // done(null, profile);
 }));
 passport.serializeUser((user, done) => { done(null, user); });
 passport.deserializeUser((user, done) => { done(null, user); });
@@ -83,8 +82,8 @@ app.get('/auth/google',
 );
 app.get('/auth/google/callback',
   passport.authenticate('google', {
-    successRedirect: process.env.VITE_FRONTEND_URL + '/dashboard',
-    failureRedirect: process.env.VITE_FRONTEND_URL + '/login'
+    successRedirect: process.env.VITE_FRONTEND_URL,
+    failureRedirect: process.env.VITE_FRONTEND_URL
   })
 );
 app.get('/auth/user', (req, res) => {
