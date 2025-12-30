@@ -1,5 +1,4 @@
 export default function Alert({ alert }) {
-  // console.log(alertt);
   return (
     <div style={{ height: '0rem', zIndex: '1000' }}>
       <>

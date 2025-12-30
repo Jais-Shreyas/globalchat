@@ -1,13 +1,15 @@
 import './App.css'
 import Navbar from './Navbar'
 import { createBrowserRouter as Router, RouterProvider } from 'react-router-dom'
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import About from './About';
 import Login from './Login';
 import Signup from './Signup';
 import Chat from './Chat';
 import Profile from './Profile';
 function App() {
+  const wsRef = useRef(null);
+
   const [dark, setDark] = useState(localStorage.getItem('dark') == 'true' ? true : false);
   const initialFetchUser = async () => {
     try {
@@ -30,6 +32,12 @@ function App() {
       setUser(user);
     }
     fetchUser();
+    const backendUrl = import.meta.env.VITE_BACKEND_URL;
+    const ws = new WebSocket(backendUrl.replace('http', 'ws'));
+    wsRef.current = ws;
+    ws.onopen = () => {
+      console.log('WebSocket connection established');
+    };
   }, []);
   const [alert, setAlert] = useState(null);
   const showAlert = (type, message) => {
@@ -47,6 +55,7 @@ function App() {
       setUser({ username: null, name: null, id: null, email: null });
     } else {
       localStorage.setItem('user', JSON.stringify(userr));
+      wsRef.current.send(JSON.stringify({ type: 'AUTH', user: userr }));
       setUser(userr);
     }
   }
