@@ -1,15 +1,22 @@
 import React, { useState } from 'react'
 import { redirect, useNavigate } from 'react-router-dom';
 import ContinueWithGoogleButton from './ContinueWithGoogleButton';
+import type { Alert } from './types/alert'
+import { User } from './types/user'
 
-export default function Login({ dark, user, changeUser, showAlert }) {
+type LoginProps = {
+  changeUser: (user: User | null) => void;
+  showAlert: (alert: Alert) => void;
+}
+
+export default function Login({ changeUser, showAlert }: LoginProps) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const navigate = useNavigate();
   const [creds, setCreds] = useState({ email: "", password: "" });
-  const onChange = (e) => {
+  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCreds({ ...creds, [e.target.name]: e.target.value })
   }
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const response = await fetch(`${backendUrl}/login`, {
       method: "POST",
@@ -22,19 +29,19 @@ export default function Login({ dark, user, changeUser, showAlert }) {
       const json = await response.json();
       console.log("Login json", json);
       if (json.isValid) {
-        showAlert('success', 'Welcome back!');
-        changeUser({ username: json.user.username, name: json.user.name, id: json.user._id, email: json.user.email });
+        showAlert({type: 'success', message: 'Welcome back!'});
+        const {username, name, _id, email} = json.user;
+        changeUser({ username, name, id: _id, email });
         navigate('/');
       } else {
-        showAlert('danger', json.message);
-        changeUser({ user: null, name: null, id: null, email: null });
+        showAlert({type: 'danger', message: json.message});
+        changeUser(null);
         navigate('/login');
       }
-
     } catch (e) {
       console.log(e);
-      showAlert('danger', e);
-      changeUser({ user: null, name: null, id: null, email: null });
+      showAlert({type: 'danger', message: String(e)});
+      changeUser(null);
       navigate('/login');
     }
   }
@@ -61,9 +68,9 @@ export default function Login({ dark, user, changeUser, showAlert }) {
               <div className='' style={{ width: '35%', height: '0.1rem', marginTop: '0.7rem', backgroundColor: 'black' }}></div>
             </div>
           </form>
-            <div className="d-grid mb-3 mx-4">
-              <ContinueWithGoogleButton changeUser={changeUser} showAlert={showAlert} />
-            </div>
+          <div className="d-grid mb-3 mx-4">
+            <ContinueWithGoogleButton changeUser={changeUser} showAlert={showAlert} />
+          </div>
         </div>
       </div>
     </div>

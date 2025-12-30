@@ -1,22 +1,23 @@
-const express = require('express');
+import express, { json, urlencoded } from 'express';
 const app = express();
-const dotenv = require('dotenv');
+import dotenv from 'dotenv';
 dotenv.config();
 
-const User = require('./models/user');
-const Chat = require('./models/chat');
-const bcrypt = require('bcrypt');
+import User from './models/user.js';
+import Chat from './models/chat.js';
+import bcrypt from 'bcrypt';
 
-const methodOverride = require('method-override');
+import methodOverride from 'method-override';
 app.use(methodOverride('_method'));
 
-const cors = require('cors');
+import cors from 'cors';
 app.use(cors({ origin: process.env.VITE_FRONTEND_URL, credentials: true }));
 
 let allChatsCache = [];
 const giveTodayDate = () => {
   return new Date().toLocaleDateString();
 }
+
 let lastrefresh = giveTodayDate();
 const refreshChat = async () => {
   allChatsCache = await Chat.find().populate('user');
@@ -25,11 +26,12 @@ const refreshChat = async () => {
     return { _id: chat._id, message: chat.message, username: chat.user.username, name: chat.user.name, createdAt: chat.createdAt };
   });
 }
-const mongoose = require('mongoose');
+
+import { connect } from 'mongoose';
 async function run() {
   try {
     const mongoUri = process.env.VITE_MONGO_URI;
-    mongoose.connect(mongoUri);
+    connect(mongoUri);
   } finally {
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
     refreshChat();
@@ -38,8 +40,8 @@ async function run() {
 }
 run().catch(console.dir);
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(json());
+app.use(urlencoded({ extended: true }));
 
 app.post('/googlelogin', async (req, res) => {
   const { name, email } = req.body;
@@ -106,7 +108,7 @@ app.post('/signup', async (req, res, next) => {
       return res.send({ isValid: false, message: 'Email already registered' });
     }
     const user = new User({ authType: 'local', name, username, email });
-    const hash = await bcrypt.hash(password, 12);
+    const hash = await bcrypt._hash(password, 12);
     user.password = hash;
     await user.save();
     res.send({ isValid: true, user: { name: user.name, email: user.email, _id: user._id, username: user.username } });
@@ -118,7 +120,6 @@ app.post('/signup', async (req, res, next) => {
 
 app.get('/profile/:username/:id', async (req, res) => {
   const { username, id } = req.params;
-  // console.log(username, id);
   if (!username) {
     return res.send({ isValid: false, message: 'Invalid username' });
   }

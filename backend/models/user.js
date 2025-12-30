@@ -1,5 +1,4 @@
-const mongoose = require('mongoose');
-const Schema = mongoose.Schema;
+import { Schema, model } from 'mongoose';
 const UserSchema = new Schema({
   authType: {
     type: String,
@@ -27,4 +26,4 @@ const UserSchema = new Schema({
   }
 });
 
-module.exports = mongoose.model('User', UserSchema);
+export default model('User', UserSchema);

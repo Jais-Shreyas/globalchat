@@ -1,15 +1,22 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import ContinueWithGoogleButton from './ContinueWithGoogleButton';
+import { User } from './types/user';
+import { Alert } from './types/alert';
 
-export default function Signup({ dark, user, changeUser, alert, showAlert }) {
+type SignupProps = {
+  changeUser: (user: User | null) => void;
+  showAlert: (alert: Alert) => void;
+}
+
+export default function Signup({ changeUser, showAlert }: SignupProps) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const navigate = useNavigate();
   const [creds, setCreds] = useState({ name: "", username: "", email: "", password: "" });
-  const onChange = (e) => {
+  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCreds({ ...creds, [e.target.name]: e.target.value })
   }
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const response = await fetch(`${backendUrl}/signup`, {
       method: "POST",
@@ -21,19 +28,19 @@ export default function Signup({ dark, user, changeUser, alert, showAlert }) {
     try {
       const json = await response.json()
       if (!json.isValid) {
-        showAlert('danger', json.message);
-        changeUser({ user: null, name: null, id: null, email: null });
+        showAlert({ type: 'danger', message: json.message});
+        changeUser(null);
         navigate('/signup');
       } else {
-        showAlert('success', 'Welcome to Global Chat!');
+        showAlert({ type: 'success', message: 'Welcome to Global Chat!'});
         changeUser({ username: json.user.username, name: json.user.name, id: json.user._id, email: json.user.email });
         localStorage.setItem('user', JSON.stringify({ username: json.user.username, name: json.user.name, id: json.user._id, email: json.user.email }));
         navigate('/');
       }
     } catch (e) {
       console.log(e);
-      showAlert('danger', e);
-      changeUser({ user: null, name: null, id: null, email: null });
+      showAlert({ type: 'danger', message: "Internal error occured..." });
+      changeUser(null);
     }
   }
   return (

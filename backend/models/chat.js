@@ -1,18 +1,18 @@
-const mongoose = require('mongoose');
-const User = require('./user');
+import { Schema, model } from 'mongoose';
+import User from './user.js';
 
 const time = () => {
   const date = new Date();
   return date.toDateString().slice(4) + ' ' + date.toLocaleTimeString();
 }
 
-const chatSchema = new mongoose.Schema({
+const chatSchema = new Schema({
   message: {
     type: String,
     required: true
   },
   user: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: Schema.Types.ObjectId,
     ref: 'User'
   },
   createdAt: {
@@ -20,4 +20,4 @@ const chatSchema = new mongoose.Schema({
     default: time
   }
 });
-module.exports = mongoose.model('Chat', chatSchema);
+export default model('Chat', chatSchema);

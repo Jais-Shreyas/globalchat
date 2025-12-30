@@ -1,4 +1,8 @@
-export default function About({ dark }) {
+type AboutProps = {
+  dark: boolean;
+};
+
+export default function About({ dark }: AboutProps) {
   return (
     <div className={`container ${dark ? 'text-light' : 'text-dark'}`}>
       <h1>About Us</h1>

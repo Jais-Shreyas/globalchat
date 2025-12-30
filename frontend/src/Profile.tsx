@@ -1,15 +1,22 @@
 import React, { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom';
+import { User } from './types/user';
+import { Alert } from './types/alert';
 
-export default function Profile({ user, changeUser, dark, showAlert }) {
+type ProfileProps = {
+  user: User | null;
+  changeUser: (user: User | null) => void;
+  showAlert: (alert: Alert) => void;
+}
+
+export default function Profile({ user, changeUser, showAlert }: ProfileProps) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const { username } = useParams();
-  const [userData, setUserData] = useState({ name: "", username: "", email: "" });
+  const [userData, setUserData] = useState({ name: "---", username: "---", email: "" });
   const [newData, setNewData] = useState({ name: "", username: "", email: "" });
   const [isEditing, toggleEditing] = useState(false);
   useEffect(() => {
-    // console.log("User", user);
-    fetch(`${backendUrl}/profile/${username}/${user.id}`, {
+    fetch(`${backendUrl}/profile/${username}/${user?.id}`, {
       method: "GET",
       headers: {
         'Content-type': 'application/json'
@@ -18,20 +25,20 @@ export default function Profile({ user, changeUser, dark, showAlert }) {
     })
       .then(response => response.json())
       .then(data => {
-        // console.log(data);
         if (data.isValid) {
-          setUserData({ name: data.user.name, username: data.user.username, email: (data.user.email) });
-          setNewData({ name: data.user.name, username: data.user.username, email: (data.user.email) });
+          const { name, username, email } = data.user;
+          setUserData({ name, username, email });
+          setNewData({ name, username, email });
         } else {
-          showAlert('danger', data.message);
+          showAlert({ type: 'danger', message: data.message });
         }
       })
       .catch(e => {
         console.log(e);
-        showAlert('danger', e.message);
+        showAlert({ type: 'danger', message: "Internal error occured..." });
       })
   }, []);
-  const handleCredUpdate = (e) => {
+  const handleCredUpdate = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewData({ ...newData, [e.target.name]: e.target.value })
   }
   const handleCancel = () => {
@@ -40,9 +47,9 @@ export default function Profile({ user, changeUser, dark, showAlert }) {
   }
   const handleSubmit = async () => {
     if (!newData.name || !newData.username) {
-      return showAlert('danger', 'Fields can\'t be empty.')
+      return showAlert({ type: 'danger', message: 'Fields can\'t be empty.' })
     }
-    const response = await fetch(`${backendUrl}/profile/${user.id}?_method=PATCH`, {
+    const response = await fetch(`${backendUrl}/profile/${user?.id}?_method=PATCH`, {
       method: 'POST',
       headers: {
         'Content-type': 'application/json'
@@ -52,15 +59,16 @@ export default function Profile({ user, changeUser, dark, showAlert }) {
     try {
       const json = await response.json();
       if (json.isValid) {
-        showAlert('success', 'Details updates successfully');
+        showAlert({ type: 'success', message: 'Details updates successfully' });
         setUserData(newData);
-        changeUser({ username: json.user.username, name: json.user.name, id: json.user._id, email: json.user.email });
+        const { username, name, _id, email } = json.user;
+        changeUser({ username, name, id: _id, email });
         toggleEditing(false);
       } else {
-        showAlert('danger', json.message);
+        showAlert({ type: 'danger', message: json.message });
       }
     } catch (e) {
-      showAlert('danger', json.message);
+      showAlert({ type: 'danger', message: String(e) });
     }
   }
   return (
@@ -108,7 +116,7 @@ export default function Profile({ user, changeUser, dark, showAlert }) {
               </>
               }
             </div>
-            {user.username === userData.username && <div>
+            {user?.username === userData.username && <div>
               {isEditing ?
                 <div className='mx-4'>
                   <button className="btn btn-danger" onClick={handleCancel}>Cancel</button>

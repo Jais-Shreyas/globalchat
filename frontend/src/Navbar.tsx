@@ -2,8 +2,20 @@ import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import { Link } from "react-router-dom";
 import Alert from './Alert';
+import type { User } from './types/user'
+import type { Alert as AlertType } from './types/alert';
 
-export default function Navbar({ dark, changeMode, page = 'home', user, changeUser, alert, showAlert }) {
+type NavbarProps = {
+  dark: boolean;
+  changeMode: () => void;
+  page?: 'home' | 'about' | 'login' | 'signup' | 'profile';
+  user: User | null;
+  changeUser: (user: User | null) => void;
+  alert: AlertType | null;
+  showAlert: (alert: AlertType) => void;
+}
+
+export default function Navbar({ dark, changeMode, page = 'home', user, changeUser, alert, showAlert }: NavbarProps) {
   return (
     <>
       <nav className={`navbar sticky-top ${dark ? 'navbar-dark bg-dark' : 'navbar-light bg-light'} navbar-expand-md`}>
@@ -30,7 +42,7 @@ export default function Navbar({ dark, changeMode, page = 'home', user, changeUs
                   {dark ? <DarkModeIcon /> : <LightModeIcon />}
                 </div>
               </li>
-              {!user.username ? (
+              {!user ? (
                 <>
                   <li className="nav-item">
                     <Link className={`nav-link ${page === 'login' ? 'active' : ''}`} to="/login">Login</Link>
@@ -46,8 +58,8 @@ export default function Navbar({ dark, changeMode, page = 'home', user, changeUs
                   </li>
                   <li className="nav-item">
                     <Link className="nav-link" to="/" onClick={() => {
-                      changeUser({ username: null, id: null });
-                      showAlert('success', 'Successfully logged out!!');
+                      changeUser(null);
+                      showAlert({type: 'success', message: 'Successfully logged out!!'});
                     }}>Logout</Link>
                   </li>
                 </>

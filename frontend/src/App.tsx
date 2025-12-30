@@ -7,56 +7,66 @@ import Login from './Login';
 import Signup from './Signup';
 import Chat from './Chat';
 import Profile from './Profile';
+import type { Alert } from './types/alert'
+import type { User } from './types/user'
+
 function App() {
-  const wsRef = useRef(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
-  const [dark, setDark] = useState(localStorage.getItem('dark') == 'true' ? true : false);
-  const initialFetchUser = async () => {
+  const [dark, setDark] = useState<boolean>(localStorage.getItem('dark') === 'true' ? true : false);
+
+  const [user, setUser] = useState<User | null>(null);
+  const initialFetchUser = (): User | null => {
+    const rawRead = localStorage.getItem("user");
+    if (!rawRead) return null;
+
     try {
-      const checkUser = await JSON.parse(localStorage.getItem('user'));
-      if (checkUser.username) {
-        return (checkUser);
-      } else {
-        return ({ username: null, name: null, id: null, email: null });
-      }
-    } catch (e) {
-      console.log(e);
-      return ({ username: null, name: null, id: null, email: null });
-    }
-  }
+      const parsed = JSON.parse(rawRead);
 
-  const [user, setUser] = useState({ username: null, name: null, id: null, email: null });
-  useEffect(() => {
-    const fetchUser = async () => {
-      const user = await initialFetchUser();
-      setUser(user);
+      if (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        typeof parsed.id === "string" &&
+        typeof parsed.username === "string" &&
+        typeof parsed.name === "string" &&
+        typeof parsed.email === "string"
+      ) {
+        return parsed;
+      }
+
+      throw new Error("Invalid user shape");
+    } catch {
+      localStorage.removeItem("user"); // misformatted user data, removed
+      return null;
     }
-    fetchUser();
-    const backendUrl = import.meta.env.VITE_BACKEND_URL;
-    const ws = new WebSocket(backendUrl.replace('http', 'ws'));
-    wsRef.current = ws;
-    ws.onopen = () => {
-      console.log('WebSocket connection established');
-    };
+  };
+
+  useEffect(() => {
+    setUser(initialFetchUser());
+    // const backendUrl = import.meta.env.VITE_BACKEND_URL;
+    // const ws = new WebSocket(backendUrl.replace('http', 'ws'));
+    // wsRef.current = ws;
+    // ws.onopen = () => {
+    //   console.log('WebSocket connection established');
+    // };
   }, []);
-  const [alert, setAlert] = useState(null);
-  const showAlert = (type, message) => {
-    setAlert({
-      message: message,
-      type: type
-    })
-    setTimeout(() => {
-      setAlert(null);
-    }, 2500);
-  }
-  const changeUser = (userr) => {
-    if (!userr) {
+
+  const [alert, setAlert] = useState<Alert | null>(null);
+  const showAlert = (alert: Alert): void => {
+    setAlert(alert);
+    setTimeout(() => setAlert(null), 2500);
+  };
+
+  const changeUser = (user: User | null) => {
+    if (!user) {
       localStorage.removeItem('user');
-      setUser({ username: null, name: null, id: null, email: null });
+      setUser(null);
     } else {
-      localStorage.setItem('user', JSON.stringify(userr));
-      wsRef.current.send(JSON.stringify({ type: 'AUTH', user: userr }));
-      setUser(userr);
+      localStorage.setItem('user', JSON.stringify(user));
+      // if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      //   wsRef.current.send(JSON.stringify({ type: 'AUTH', user: user }));
+      // }
+      setUser(user);
     }
   }
   useEffect(() => {
@@ -73,7 +83,7 @@ function App() {
     else {
       document.body.style.backgroundColor = "#212529";
     }
-    localStorage.setItem('dark', !dark);
+    localStorage.setItem('dark', String(!dark));
     setDark(!dark);
   }
   const router = Router([
@@ -98,7 +108,7 @@ function App() {
       element:
         <>
           <Navbar page='login' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
-          <Login dark={dark} user={user} changeUser={changeUser} showAlert={showAlert} />
+          <Login changeUser={changeUser} showAlert={showAlert} />
         </>
     },
     {
@@ -106,7 +116,7 @@ function App() {
       element:
         <>
           <Navbar page='signup' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
-          <Signup dark={dark} user={user} changeUser={changeUser} showAlert={showAlert} />
+          <Signup changeUser={changeUser} showAlert={showAlert} />
         </>
     },
     {
@@ -114,7 +124,7 @@ function App() {
       element:
         <>
           <Navbar page='profile' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
-          <Profile dark={dark} user={user} changeUser={changeUser} showAlert={showAlert} />
+          <Profile user={user} changeUser={changeUser} showAlert={showAlert} />
         </>
     },
     {
