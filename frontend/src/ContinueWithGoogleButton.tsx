@@ -15,20 +15,23 @@ const ContinueWithGoogleButton = ({ changeUser, showAlert }: ContinueWithGoogleB
   const handleLogin = async () => {
     try {
       const result = await signInWithPopup(auth, provider);
-      const credentials = GoogleAuthProvider.credentialFromResult(result);
-      const user = result.user.providerData[0];
-      if (!user) throw new Error('No user found after Google sign-in.');
+      const firebaseUser = result.user.providerData[0] || null;
+      if (!firebaseUser || !firebaseUser.email || !firebaseUser.uid) {
+        throw new Error('No user found after Google sign-in.');
+      }
+      const { displayName, email, uid, photoURL } = firebaseUser;
       const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/googlelogin`, {
         method: "POST",
         headers: {
           'Content-type': 'application/json'
         },
         credentials: 'include',
-        body: JSON.stringify({ user })
+        body: JSON.stringify({ displayName, email, uid, photoURL })
       });
       const json = await response.json();
       if (response.ok) {
-        changeUser({ username: json.user.username, name: json.user.name, _id: json.user._id, email: json.user.email });
+        const { username, email, name, _id, photoURL } = json.user;
+        changeUser({ username, email, name, _id, photoURL });
         showAlert({ type: 'success', message: 'Welcome back!' });
         navigate('/');
       } else {
@@ -36,13 +39,20 @@ const ContinueWithGoogleButton = ({ changeUser, showAlert }: ContinueWithGoogleB
         showAlert({ type: 'danger', message: json.message });
       }
     } catch (error: any) {
-      const errorCode = error.code;
-      const errorMessage = error.message;
-      const email = error.customData.email;
-      console.error('Error during Google sign-in:', errorCode, errorMessage, email);
+      if (error instanceof TypeError) {
+        showAlert({
+          type: 'danger',
+          message: 'Unable to reach server. Please try again later.'
+        });
+      } else {
+        showAlert({
+          type: 'danger',
+          message: error.message || 'Google sign-in failed'
+        });
+      }
       changeUser(null);
-      showAlert({ type: 'danger', message: errorMessage });
     }
+
   }
   return (
     <div onClick={handleLogin}>
