@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { User } from './types/user';
 import { Alert } from './types/alert';
 
@@ -12,63 +12,92 @@ type ProfileProps = {
 export default function Profile({ user, changeUser, showAlert }: ProfileProps) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const { username } = useParams();
-  const [userData, setUserData] = useState({ name: "---", username: "---", email: "" });
-  const [newData, setNewData] = useState({ name: "", username: "", email: "" });
+  const navigate = useNavigate();
+  type userDataProps = {
+    name: string;
+    username: string;
+    email: string;
+    _id: string;
+    photoURL: string | null;
+  }
+  const [userData, setUserData] = useState<userDataProps>({ name: "---", username: "---", email: "", _id: "", photoURL: null });
   const [isEditing, toggleEditing] = useState(false);
   useEffect(() => {
-    fetch(`${backendUrl}/profile/${username}/${user?.id}`, {
-      method: "GET",
-      headers: {
-        'Content-type': 'application/json'
-      },
-      credentials: 'include'
-    })
-      .then(response => response.json())
-      .then(data => {
-        if (data.isValid) {
-          const { name, username, email } = data.user;
-          setUserData({ name, username, email });
-          setNewData({ name, username, email });
-        } else {
-          showAlert({ type: 'danger', message: data.message });
+    const fetchProfile = async (user: string) => {
+      try {
+        const response = await fetch(`${backendUrl}/profile/${user}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Profile fetch failed")
         }
-      })
-      .catch(e => {
-        console.log(e);
-        showAlert({ type: 'danger', message: "Internal error occured..." });
-      })
-  }, []);
+
+        const { name, username, email, photoURL, _id } = data.user;
+        setUserData({ name, username, email, photoURL, _id });
+        
+      } catch (err) {
+        
+        console.error(err);
+        showAlert({
+          type: "danger",
+          message: "Internal error occurred...",
+        });
+      }
+    };
+
+    fetchProfile(username!);
+  }, [username]);
+
   const handleCredUpdate = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setNewData({ ...newData, [e.target.name]: e.target.value })
+    setUserData({ ...userData, [e.target.name]: e.target.value })
   }
   const handleCancel = () => {
-    setNewData(userData);
     toggleEditing(false);
+    navigate(`/profile/${username}`);
   }
   const handleSubmit = async () => {
-    if (!newData.name || !newData.username) {
-      return showAlert({ type: 'danger', message: 'Fields can\'t be empty.' })
-    }
-    const response = await fetch(`${backendUrl}/profile/${user?.id}?_method=PATCH`, {
-      method: 'POST',
-      headers: {
-        'Content-type': 'application/json'
-      },
-      body: JSON.stringify({ oldUsername: userData.username, newUsername: newData.username, newName: newData.name })
-    });
     try {
-      const json = await response.json();
-      if (json.isValid) {
-        showAlert({ type: 'success', message: 'Details updates successfully' });
-        setUserData(newData);
-        const { username, name, _id, email } = json.user;
-        changeUser({ username, name, id: _id, email });
-        toggleEditing(false);
-      } else {
-        showAlert({ type: 'danger', message: json.message });
+      if (!userData.name || !userData.username) {
+        return showAlert({ type: 'danger', message: 'Fields can\'t be empty.' })
       }
-    } catch (e) {
-      showAlert({ type: 'danger', message: String(e) });
+      const response = await fetch(`${backendUrl}/profile?_method=PATCH`, {
+        method: 'POST',
+        headers: {
+          'Content-type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ ...userData })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Update failed');
+      }
+
+      const { name, username, photoURL } = data.user;
+      changeUser({ ...user!, name, username, photoURL });
+
+      toggleEditing(false);
+      showAlert({ type: 'success', message: 'Details updates successfully' });
+
+      navigate(`/profile/${username}`);
+
+    } catch (e: any) {
+      console.error("Profile Update Error: ", e)
+      if (e instanceof TypeError) {
+        showAlert({ type: 'danger', message: "Unable to reach server, please try again later." });
+      } else if (e instanceof Error) {
+        showAlert({ type: 'danger', message: e.message });
+      } else {
+        showAlert({ type: 'danger', message: "Something went wrong" })
+      }
     }
   }
   return (
@@ -78,13 +107,41 @@ export default function Profile({ user, changeUser, showAlert }: ProfileProps) {
           <div className="card shadow card-body">
             <h3 className="text-center mt-3">Profile</h3>
             <div className="container my-3">
+              <div className='row'>
+                {isEditing ?
+                  <>
+                    <div className="col-sm-4">
+                      <p className="mb-0">Profile URL</p>
+                    </div>
+                    <div className="col-sm-8">
+                      <input type='text' name='photoURL' value={userData.photoURL || ''} onChange={handleCredUpdate} />
+                    </div>
+                  </>
+                  :
+                  <img
+                    src={userData.photoURL ?? "/defaultDP.jpg"}
+                    alt="Profile Picture"
+                    style={{
+                      margin: 'auto',
+                      maxWidth: '400px',
+                      borderRadius: '50%'
+                    }}
+                    onError={(e) => {
+                      showAlert({ type: 'warning', message: 'Failed to load profile picture, showing default.' });
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = "/defaultDP.jpg";
+                    }}
+                  />
+                }
+              </div>
+              <hr />
               <div className="row">
                 <div className="col-sm-4">
                   <p className="mb-0">Full Name</p>
                 </div>
                 <div className="col-sm-8">
                   {isEditing ?
-                    <input type="text" name='name' value={newData.name} onChange={handleCredUpdate} />
+                    <input type="text" name='name' value={userData.name} onChange={handleCredUpdate} />
                     :
                     <p className="text-muted mb-0">{userData.name}</p>
                   }
@@ -97,7 +154,7 @@ export default function Profile({ user, changeUser, showAlert }: ProfileProps) {
                 </div>
                 <div className="col-sm-8">
                   {isEditing ?
-                    <input type="text" name='username' value={newData.username} onChange={handleCredUpdate} />
+                    <input type="text" name='username' value={userData.username} onChange={handleCredUpdate} />
                     :
                     <p className="text-muted mb-0">{userData.username}</p>
                   }
@@ -116,7 +173,7 @@ export default function Profile({ user, changeUser, showAlert }: ProfileProps) {
               </>
               }
             </div>
-            {user?.username === userData.username && <div>
+            {user?.email === userData.email && <div>
               {isEditing ?
                 <div className='mx-4'>
                   <button className="btn btn-danger" onClick={handleCancel}>Cancel</button>

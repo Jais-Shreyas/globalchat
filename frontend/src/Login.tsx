@@ -12,39 +12,43 @@ type LoginProps = {
 export default function Login({ changeUser, showAlert }: LoginProps) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const navigate = useNavigate();
-  const [creds, setCreds] = useState({ email: "", password: "" });
+  const [creds, setCreds] = useState({ identifier: "", password: "" });
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCreds({ ...creds, [e.target.name]: e.target.value })
   }
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const response = await fetch(`${backendUrl}/login`, {
-      method: "POST",
-      headers: {
-        'Content-type': 'application/json'
-      },
-      body: JSON.stringify({ email: creds.email, password: creds.password })
-    });
     try {
+      const response = await fetch(`${backendUrl}/login`, {
+        method: "POST",
+        headers: {
+          'Content-type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ identifier: creds.identifier, password: creds.password })
+      });
       const json = await response.json();
-      console.log("Login json", json);
-      if (json.isValid) {
-        showAlert({type: 'success', message: 'Welcome back!'});
-        const {username, name, _id, email} = json.user;
-        changeUser({ username, name, id: _id, email });
-        navigate('/');
-      } else {
-        showAlert({type: 'danger', message: json.message});
-        changeUser(null);
-        navigate('/login');
+      if (!response.ok) {
+        throw new Error(json.message || 'Login failed');
       }
+      showAlert({ type: 'success', message: 'Logged in successfully!' });
+      const { username, name, _id, email, photoURL } = json.user;
+      changeUser({ username, name, _id, email, photoURL });
+      navigate('/');
     } catch (e) {
-      console.log(e);
-      showAlert({type: 'danger', message: String(e)});
+      console.error("Login Error: ", e)
+      if (e instanceof TypeError) {
+        showAlert({ type: 'danger', message: "Unable to reach server, please try again later." });
+      } else if (e instanceof Error) {
+        showAlert({type: 'danger', message: e.message});
+      } else {
+        showAlert({type: 'danger', message: "Something went wrong"})
+      }
       changeUser(null);
-      navigate('/login');
     }
   }
+
   return (
     <div className="row">
       <div className="col col-md-6 offset-md-3" style={{ marginTop: '5rem' }}>
@@ -53,7 +57,7 @@ export default function Login({ changeUser, showAlert }: LoginProps) {
           <form className="container needs-validation" onSubmit={(e) => handleSubmit(e)}>
             <div className="input-group mb-3">
               <span className="input-group-text" id="basic-addon1">@</span>
-              <input autoFocus value={creds.email} onChange={onChange} type="text" name="email" className="form-control" placeholder="Email / Username" aria-label="email" aria-describedby="email" required />
+              <input autoFocus value={creds.identifier} onChange={onChange} type="text" name="identifier" className="form-control" placeholder="Email / Username" aria-label="identifier" aria-describedby="identifier" required />
             </div>
             <div className="input-group mb-3">
               <span className="input-group-text" id="basic-addon1">#</span>

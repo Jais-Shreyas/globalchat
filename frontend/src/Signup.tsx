@@ -18,28 +18,34 @@ export default function Signup({ changeUser, showAlert }: SignupProps) {
   }
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const response = await fetch(`${backendUrl}/signup`, {
-      method: "POST",
-      headers: {
-        'Content-type': 'application/json'
-      },
-      body: JSON.stringify({ name: creds.name, email: creds.email, username: creds.username, password: creds.password })
-    });
     try {
+      const { name, username, email, password } = creds;
+      const response = await fetch(`${backendUrl}/signup`, {
+        method: "POST",
+        headers: {
+          'Content-type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ name, username, email, password })
+      });
       const json = await response.json()
-      if (!json.isValid) {
-        showAlert({ type: 'danger', message: json.message});
-        changeUser(null);
-        navigate('/signup');
-      } else {
-        showAlert({ type: 'success', message: 'Welcome to Global Chat!'});
-        changeUser({ username: json.user.username, name: json.user.name, id: json.user._id, email: json.user.email });
-        localStorage.setItem('user', JSON.stringify({ username: json.user.username, name: json.user.name, id: json.user._id, email: json.user.email }));
-        navigate('/');
+      if (!response.ok) {
+        throw new Error(json.message || 'SignUp failed');
       }
+      showAlert({ type: 'success', message: 'Welcome to Global Chat!' });
+
+      const { username: u, name: n, _id, email: e, photoURL: p } = json.user;
+      changeUser({ username: u, name: n, _id, email: e, photoURL: p });
+      navigate('/');
     } catch (e) {
-      console.log(e);
-      showAlert({ type: 'danger', message: "Internal error occured..." });
+      console.error("SignUp Error: ", e)
+      if (e instanceof TypeError) {
+        showAlert({ type: 'danger', message: "Unable to reach server, please try again later." });
+      } else if (e instanceof Error) {
+        showAlert({type: 'danger', message: e.message});
+      } else {
+        showAlert({type: 'danger', message: "Something went wrong"})
+      }
       changeUser(null);
     }
   }
@@ -75,9 +81,9 @@ export default function Signup({ changeUser, showAlert }: SignupProps) {
                 <div className='' style={{ width: '35%', height: '0.1rem', marginTop: '0.7rem', backgroundColor: 'black' }}></div>
               </div>
             </form>
-              <div className="d-grid mb-3 mx-4">
-                <ContinueWithGoogleButton changeUser={changeUser} showAlert={showAlert} />
-              </div>
+            <div className="d-grid mb-3 mx-4">
+              <ContinueWithGoogleButton changeUser={changeUser} showAlert={showAlert} />
+            </div>
           </div>
         </div>
       </div>

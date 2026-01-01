@@ -12,5 +12,4 @@ const app = initializeApp(firebaseConfig);
 const provider = new GoogleAuthProvider();
 const auth = getAuth(app);
 auth.languageCode = 'en';
-export { auth, provider, signInWithPopup };
-// export { provider, signInWithPopup, auth };
+export { auth, provider, signInWithPopup, GoogleAuthProvider };

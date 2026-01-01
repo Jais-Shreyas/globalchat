@@ -9,47 +9,12 @@ import Chat from './Chat';
 import Profile from './Profile';
 import type { Alert } from './types/alert'
 import type { User } from './types/user'
+import LandingPage from './LandingPage';
 
 function App() {
+  const reconnectDelay = useRef(1000); // 1 second initial delay
+  const reconnectTimer = useRef<number | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
-
-  const [dark, setDark] = useState<boolean>(localStorage.getItem('dark') === 'true' ? true : false);
-
-  const [user, setUser] = useState<User | null>(null);
-  const initialFetchUser = (): User | null => {
-    const rawRead = localStorage.getItem("user");
-    if (!rawRead) return null;
-
-    try {
-      const parsed = JSON.parse(rawRead);
-
-      if (
-        typeof parsed === "object" &&
-        parsed !== null &&
-        typeof parsed.id === "string" &&
-        typeof parsed.username === "string" &&
-        typeof parsed.name === "string" &&
-        typeof parsed.email === "string"
-      ) {
-        return parsed;
-      }
-
-      throw new Error("Invalid user shape");
-    } catch {
-      localStorage.removeItem("user"); // misformatted user data, removed
-      return null;
-    }
-  };
-
-  useEffect(() => {
-    setUser(initialFetchUser());
-    // const backendUrl = import.meta.env.VITE_BACKEND_URL;
-    // const ws = new WebSocket(backendUrl.replace('http', 'ws'));
-    // wsRef.current = ws;
-    // ws.onopen = () => {
-    //   console.log('WebSocket connection established');
-    // };
-  }, []);
 
   const [alert, setAlert] = useState<Alert | null>(null);
   const showAlert = (alert: Alert): void => {
@@ -57,25 +22,104 @@ function App() {
     setTimeout(() => setAlert(null), 2500);
   };
 
+  const [dark, setDark] = useState<boolean>(true);
+
+  const [user, setUser] = useState<User | null>(null);
+
+  const initialFetchUser = async (): Promise<User | null> => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/me`, {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const json = await response.json();
+      return json.user as User;
+    } catch (err) {
+      console.error(err);
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const fetchedUser = await initialFetchUser();
+      setUser(fetchedUser);
+    };
+
+    fetchUser();
+  }, [user?._id]);
+
+
+  const connectWebSocket = () => {
+    if (!user) return;
+
+    const wsUrl = import.meta.env.VITE_BACKEND_URL.replace(/^http/, 'ws');
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log("WebSocket connected");
+      showAlert({ type: 'success', message: 'Connected to chat server' });
+      reconnectDelay.current = 1000; // reset delay on successful connection
+      ws.send(JSON.stringify({ type: 'AUTH', userId: user._id })); // id remains same even after user changes username
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+      ws.close();
+    };
+
+    ws.onclose = () => {
+      console.log(`WebSocket disconnected, attempting to reconnect in ${reconnectDelay.current} ms`);
+      showAlert({ type: 'warning', message: 'Disconnected from chat server. Reconnecting...' });
+      reconnectTimer.current = window.setTimeout(() => {
+        connectWebSocket();
+        reconnectDelay.current = Math.min(reconnectDelay.current * 2, 30000); // exponential backoff up to 30 seconds
+      }, reconnectDelay.current);
+    };
+  };
+
+  useEffect(() => {
+    if (!user) {
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      return;
+    }
+
+    connectWebSocket();
+
+    return () => {  // cleanup on unmount or user change
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      if (reconnectTimer.current) {
+        clearTimeout(reconnectTimer.current);
+      }
+    };
+  }, [user?._id]);
+
   const changeUser = (user: User | null) => {
     if (!user) {
-      localStorage.removeItem('user');
       setUser(null);
     } else {
-      localStorage.setItem('user', JSON.stringify(user));
-      // if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      //   wsRef.current.send(JSON.stringify({ type: 'AUTH', user: user }));
-      // }
       setUser(user);
     }
   }
+
   useEffect(() => {
     if (dark) {
       document.body.style.backgroundColor = "#212529";
     } else {
       document.body.style.backgroundColor = "#f8f9fa";
     }
-  }, [])
+  }, [dark])
   const changeMode = () => {
     if (dark) {
       document.body.style.backgroundColor = "#f8f9fa";
@@ -83,17 +127,19 @@ function App() {
     else {
       document.body.style.backgroundColor = "#212529";
     }
-    localStorage.setItem('dark', String(!dark));
     setDark(!dark);
   }
   const router = Router([
     {
       path: "/",
       element:
-        <>
-          <Navbar page='home' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
-          <Chat dark={dark} user={user} showAlert={showAlert} />
-        </>
+        (!user) ?
+          <LandingPage />
+          :
+          <>
+            <Navbar page='home' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
+            <Chat wsRef={wsRef} dark={dark} user={user} showAlert={showAlert} />
+          </>
     },
     {
       path: "/about",
@@ -132,7 +178,7 @@ function App() {
       element:
         <>
           <Navbar page='home' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
-          <Chat dark={dark} user={user} showAlert={showAlert} />
+          <Chat wsRef={wsRef} dark={dark} user={user} showAlert={showAlert} />
         </>
     }
   ]);

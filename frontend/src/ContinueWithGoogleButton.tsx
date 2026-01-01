@@ -1,39 +1,47 @@
 import React from 'react'
 import './ContinueWithGoogleButton.css'
-import { auth, provider, signInWithPopup } from './firebase'
+import { auth, provider, signInWithPopup, GoogleAuthProvider } from './firebase'
 import { useNavigate } from 'react-router-dom'
+import type { User } from './types/user'
+import type { Alert } from './types/alert'
 
-const ContinueWithGoogleButton = ({ changeUser, showAlert }) => {
+type ContinueWithGoogleButtonProps = {
+  changeUser: (user: User | null) => void;
+  showAlert: (alert: Alert) => void;
+}
+
+const ContinueWithGoogleButton = ({ changeUser, showAlert }: ContinueWithGoogleButtonProps) => {
   const navigate = useNavigate();
   const handleLogin = async () => {
     try {
-      await signInWithPopup(auth, provider);
-      const user = auth.currentUser;
-      const { displayName, email } = user;
+      const result = await signInWithPopup(auth, provider);
+      const credentials = GoogleAuthProvider.credentialFromResult(result);
+      const user = result.user.providerData[0];
+      if (!user) throw new Error('No user found after Google sign-in.');
       const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/googlelogin`, {
         method: "POST",
         headers: {
           'Content-type': 'application/json'
         },
-        body: JSON.stringify({ name: displayName, email })
+        credentials: 'include',
+        body: JSON.stringify({ user })
       });
       const json = await response.json();
-      if (json.isValid) {
-        changeUser({ username: json.user.username, name: json.user.name, id: json.user._id, email: json.user.email });
+      if (response.ok) {
+        changeUser({ username: json.user.username, name: json.user.name, _id: json.user._id, email: json.user.email });
+        showAlert({ type: 'success', message: 'Welcome back!' });
         navigate('/');
-        showAlert('success', 'Welcome back!');
       } else {
-        changeUser({ user: null, name: null, id: null, email: null });
-        showAlert('danger', json.message);
+        changeUser(null);
+        showAlert({ type: 'danger', message: json.message });
       }
-    } catch (error) {
+    } catch (error: any) {
       const errorCode = error.code;
       const errorMessage = error.message;
       const email = error.customData.email;
-      const credential = GoogleAuthProvider.credentialFromError(error);
-      console.error('Error during Google sign-in:', errorCode, errorMessage, email, credential);
-      changeUser({ user: null, name: null, id: null, email: null });
-      showAlert('danger', errorMessage);
+      console.error('Error during Google sign-in:', errorCode, errorMessage, email);
+      changeUser(null);
+      showAlert({ type: 'danger', message: errorMessage });
     }
   }
   return (

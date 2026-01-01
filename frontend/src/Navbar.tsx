@@ -16,6 +16,20 @@ type NavbarProps = {
 }
 
 export default function Navbar({ dark, changeMode, page = 'home', user, changeUser, alert, showAlert }: NavbarProps) {
+  const logout = async () => {
+    try {
+      await fetch(`${import.meta.env.VITE_BACKEND_URL}/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (err) {
+      console.error(err);
+      showAlert({ type: 'danger', message: 'Error logging out. Please try again.' });
+    } finally {
+      changeUser(null);
+      showAlert({ type: 'success', message: 'Logged out successfully!' });
+    }
+  }
   return (
     <>
       <nav className={`navbar sticky-top ${dark ? 'navbar-dark bg-dark' : 'navbar-light bg-light'} navbar-expand-md`}>
@@ -54,13 +68,27 @@ export default function Navbar({ dark, changeMode, page = 'home', user, changeUs
               ) : (
                 <>
                   <li className="nav-item">
-                    <Link className={`nav-link ${page === 'home' ? 'active' : ''}`} to={`/profile/${user.username}`}>{user.name}</Link>
+                    <Link className={`nav-link ${page === 'home' ? 'active' : ''}`} to={`/profile/${user.username}`}>
+                      {user.name}
+                      <img
+                        src={user.photoURL || "/defaultDP.jpg"}
+                        alt="defaultDP"
+                        style={{
+                          margin: 'auto',
+                          padding: '4px',
+                          maxWidth: '40px',
+                          borderRadius: '50%'
+                        }}
+                        onError={(e) => {
+                          e.currentTarget.src = "/defaultDP.jpg";
+                        }}
+                      />
+                    </Link>
                   </li>
                   <li className="nav-item">
-                    <Link className="nav-link" to="/" onClick={() => {
-                      changeUser(null);
-                      showAlert({type: 'success', message: 'Successfully logged out!!'});
-                    }}>Logout</Link>
+                    <button className='nav-link btn btn-link'
+                      onClick={logout}
+                    >Logout</button>
                   </li>
                 </>
               )}

@@ -1,6 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Input from './Input';
-import Edit from './Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import SwipeUpIcon from '@mui/icons-material/SwipeUp';
@@ -10,16 +9,24 @@ import { User } from './types/user';
 import { Alert } from './types/alert';
 
 type ChatProps = {
+  wsRef: React.RefObject<WebSocket | null>;
   dark: boolean;
   user: User | null;
   showAlert: (alert: Alert) => void;
 }
 
-export default function Chat({ dark, user, showAlert }: ChatProps) {
+export default function Chat({ wsRef, dark, user, showAlert }: ChatProps) {
+  // if Chat loads, it means user is logged in, and is not null
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  const [messages, setMessages] = useState([{ message: 'Loading...', username: 'Loading...', createdAt: 'Loading...' }]);
+  type Message = {
+    message: string;
+    username: string;
+    name: string;
+    createdAt: Date;
+    _id: string;
+  }
+  const [messages, setMessages] = useState<Message[]>([]);
   const [scroll, setScroll] = useState(true);
-  const admin = import.meta.env.VITE_ADMIN;
   const toggleScroll = () => {
     setScroll(!scroll);
   }
@@ -30,63 +37,59 @@ export default function Chat({ dark, user, showAlert }: ChatProps) {
         setMessages(data)
       });
   }, []);
+
+  useEffect(() => {
+    if (!wsRef.current) return;
+    wsRef.current.onmessage = (event: MessageEvent) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'NEW_MESSAGE') {
+        const { message, username, name, createdAt, _id } = data;
+        setMessages((prevMessages) => [...prevMessages, { message, username, name, createdAt, _id }]);
+      } else if (data.type === 'UPDATE_MESSAGE') {
+        const { message, _id } = data;
+        setMessages((prevMessages) => prevMessages.map(msg => msg._id === _id ? { ...msg, message } : msg));
+      } else if (data.type === 'DELETE_MESSAGE') {
+        setMessages((prevMessages) => prevMessages.filter(msg => msg._id !== data._id));
+      } else if (data.type === 'ERROR') {
+        showAlert({ type: 'danger', message: data.message });
+      } else {
+        console.log("Unknown message type:", data);
+      }
+    };
+  }, [wsRef.current]);
   const time = () => {
     const date = new Date();
     return date.toDateString().slice(4) + ' ' + date.toLocaleTimeString();
   }
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (scroll) {
-        fetch(`${backendUrl}/chat`)
-          .then(response => response.json())
-          .then(data => {
-            const lastEntry = messages[messages.length - 1];
-            if (data.length && lastEntry && (lastEntry.createdAt).toLowerCase() !== (data[data.length - 1].createdAt).toLowerCase()) {
-              setMessages(data);
-            }
-          });
-      }
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [scroll, messages]);
-  
+
   type InputMsgProp = {
     msg: string;
-    id: string | null;
+    _id: string | null;
   }
-  const [inputMessage, setInputMessage] = useState<InputMsgProp>({ msg: '', id: null });
-  const toggleEditing = (msg: string, id: string | null) => {
-    setInputMessage({ msg, id });
-  }
-
-  const insertMessage = (msg: string, id: string | null = null) => {
-    if (!inputMessage.id) {
-      fetch(`${backendUrl}/chat`, {
-        method: "POST",
-        headers: {
-          'Content-type': 'application/json'
-        },
-        body: JSON.stringify({ message: msg, username: user.username, id: user.id, createdAt: time() })
-      })
-      setMessages([...messages, { message: msg, username: user.username, createdAt: time() }]);
-    } else {
-      fetch(`${backendUrl}/chat/${id}?_method=PATCH`, {
-        method: "POST",
-        headers: {
-          'Content-type': 'application/json'
-        },
-        body: JSON.stringify({ message: msg, user_id: user.id })
-      });
-      const newmsg = messages;
-      for (let i = 0; i < newmsg.length; i++) {
-        if (newmsg[i]._id === id) {
-          newmsg[i].message = msg;
-        }
+  const [inputMessage, setInputMessage] = useState<InputMsgProp>({ msg: '', _id: null });
+  const insertMessage = () => {
+    // if _id is null, it's a new message
+    try {
+      if (!inputMessage._id) {
+        wsRef.current?.send(JSON.stringify({ type: 'NEW_MESSAGE', message: inputMessage.msg }));
+      } else {
+        wsRef.current?.send(JSON.stringify({ type: 'UPDATE_MESSAGE', message: inputMessage.msg, messageId: inputMessage._id }));
       }
-      setMessages(newmsg);
-      toggleEditing('', null)
+      setInputMessage({ msg: '', _id: null });
+    } catch (e) {
+      console.log(e);
+      showAlert({ type: 'danger', message: 'Could not send message' });
     }
   }
+  const deleteChat = async (_id: string) => {
+    try {
+      wsRef.current?.send(JSON.stringify({ type: 'DELETE_MESSAGE', messageId: _id }));
+    } catch (e) {
+      console.log(e);
+      showAlert({ type: 'danger', message: 'Could not delete message' });
+    }
+  };
+
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -94,29 +97,6 @@ export default function Chat({ dark, user, showAlert }: ChatProps) {
   useEffect(() => {
     scrollToBottom()
   }, [messages]);
-
-  const deleteChat = async (id: string) => {
-    try {
-      fetch(`${backendUrl}/chat/${id}?_method=DELETE`, {
-        method: "POST",
-        headers: {
-          'Content-type': 'application/json'
-        },
-        body: JSON.stringify({ user_id: user.id })
-      })
-        .then(response => response.json())
-        .then(data => {
-          if (!data.isValid) {
-            showAlert({ type: 'danger', message: data.message });
-            return;
-          }
-          setMessages(messages.filter(msg => msg._id !== id));
-        });
-    } catch (e) {
-      console.log(e);
-      showAlert({ type: 'danger', message: 'Could not delete message' });
-    }
-  }
 
   const curDate = time().slice(0, 11);
   const showTime = (date: Date) => {
@@ -156,16 +136,16 @@ export default function Chat({ dark, user, showAlert }: ChatProps) {
             <div key={msg._id + 'chat'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'right' }}>
               {(msg.username === user.username) &&
                 <div className="dropdown">
-                  <p className="btn btn-secondary dropdown-toggle mx-2" style={{ backgroundColor: 'transparent', color: dark ? 'white' : 'black', border: 'none' }} type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                  </p>
+                  <button className="btn btn-secondary dropdown-toggle mx-2" style={{ backgroundColor: 'transparent', color: dark ? 'white' : 'black', border: 'none' }} type="button" data-bs-toggle="dropdown" aria-expanded={false}>
+                  </button>
                   <ul className="dropdown-menu">
-                    <button className='dropdown-item btn d-inline' style={{ minWidth: '6rem' }} onClick={() => toggleEditing(msg.message, msg._id)}><EditIcon />Edit message</button>
+                    <button className='dropdown-item btn d-inline' style={{ minWidth: '6rem' }} onClick={() => setInputMessage({ msg: msg.message, _id: msg._id })}><EditIcon />Edit message</button>
                     <button className='dropdown-item btn d-inline text-danger' style={{ minWidth: '6rem' }} onClick={() => deleteChat(msg._id)}><DeleteIcon />Delete message</button>
                   </ul>
                 </div>
               }
               <div key={msg._id} style={style} className={`${msg.username === user.username ? 'user' : 'notuser'} ${dark ? 'bg-light text-dark' : 'bg-dark text-light'} mt-0`}>
-                <Link to={`/profile/${msg.username}`} style={{ textDecoration: 'none', color: 'grey', textAlign: msg.username === user ? 'right' : 'left', display: 'block' }}>
+                <Link to={`/profile/${msg.username}`} style={{ textDecoration: 'none', color: 'grey', textAlign: msg.username !== user.username ? 'left' : 'left', display: 'block' }}>
                   {'- '}{msg.username === user.username ? 'You' : msg.name}{'  '}
                   {'\n'}
                 </Link>
@@ -174,7 +154,6 @@ export default function Chat({ dark, user, showAlert }: ChatProps) {
                 </div>
                 <small style={{ fontSize: '0.5rem', lineHeight: '0', color: 'grey', display: 'block', textAlign: 'right', marginTop: '-0.7rem' }}>{showTime(msg.createdAt)}</small>
               </div>
-              {(user.email === admin) && <p className='d-inline text-danger' onClick={() => deleteChat(msg._id)}><DeleteIcon /></p>}
             </div>
           )
         })}

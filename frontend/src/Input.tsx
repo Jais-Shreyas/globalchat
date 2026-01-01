@@ -1,11 +1,10 @@
-import { useState } from "react"
 import SendIcon from '@mui/icons-material/Send';
 import EditIcon from '@mui/icons-material/Edit';
 import { User } from "./types/user";
 
 type InputMsgProp = {
   msg: string;
-  id: string | null;
+  _id: string | null;
 }
 
 type InputProps = {
@@ -13,18 +12,13 @@ type InputProps = {
   user: User;
   inputMessage: InputMsgProp;
   setInputMessage: (inputMessage: InputMsgProp) => void;
-  insertMessage: (msg: string, id?: string | null) => void;
+  insertMessage: () => void;
 }
 
 export default function Input({ dark, user, inputMessage, setInputMessage, insertMessage }: InputProps) {
   const handleSend = () => {
     if (!inputMessage.msg) return;
-    if (inputMessage.id) {
-      insertMessage(inputMessage.msg.trim(), inputMessage.id);
-    } else {
-      insertMessage(inputMessage.msg.trim());
-    }
-    setInputMessage({ msg: '', id: null });
+    insertMessage();
   }
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.shiftKey) {
@@ -50,7 +44,7 @@ export default function Input({ dark, user, inputMessage, setInputMessage, inser
           aria-describedby="button-addon2"
           readOnly={!user.username ? true : false}
         ></textarea>
-        <button className={`btn btn-success  ${!user || !inputMessage.msg ? 'disabled' : ''}`} type="button" id="button-addon2" onClick={handleSend} >{inputMessage.id ? <EditIcon /> : <SendIcon />}</button>
+        <button className={`btn btn-success  ${!user || !inputMessage.msg ? 'disabled' : ''}`} type="button" id="button-addon2" onClick={handleSend} >{inputMessage._id ? <EditIcon /> : <SendIcon />}</button>
       </form>
     </>
   )

@@ -1,5 +1,16 @@
-import express, { json, urlencoded } from 'express';
+import express from 'express';
+import http from 'http';
+import { WebSocketServer } from 'ws';
+import jwt from 'jsonwebtoken';
+
 const app = express();
+const server = http.createServer(app);
+
+const wss = new WebSocketServer({ server });
+
+import cookieParser from 'cookie-parser';
+app.use(cookieParser());
+
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -13,20 +24,6 @@ app.use(methodOverride('_method'));
 import cors from 'cors';
 app.use(cors({ origin: process.env.VITE_FRONTEND_URL, credentials: true }));
 
-let allChatsCache = [];
-const giveTodayDate = () => {
-  return new Date().toLocaleDateString();
-}
-
-let lastrefresh = giveTodayDate();
-const refreshChat = async () => {
-  allChatsCache = await Chat.find().populate('user');
-  lastrefresh = giveTodayDate();
-  allChatsCache = allChatsCache.map((chat, i) => {
-    return { _id: chat._id, message: chat.message, username: chat.user.username, name: chat.user.name, createdAt: chat.createdAt };
-  });
-}
-
 import { connect } from 'mongoose';
 async function run() {
   try {
@@ -34,217 +31,397 @@ async function run() {
     connect(mongoUri);
   } finally {
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
-    refreshChat();
-    console.log("All chats cached successfully!");
   }
 }
 run().catch(console.dir);
 
-app.use(json());
-app.use(urlencoded({ extended: true }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+const authenticate = (req, res, next) => {
+  const token = req.cookies.auth;
+  if (!token) return res.status(401).json({ message: 'Unauthorized' });
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    req._id = payload._id;
+    next();
+  } catch {
+    res.status(401).json({ message: 'Invalid token' });
+  }
+};
+
+app.get('/me', authenticate, async (req, res) => {
+  const user = await User.findById(req._id).select(
+    '_id username name email photoURL'
+  );
+
+  if (!user) {
+    return res.status(401).json({ message: 'User not found' });
+  }
+  if (!user.photoURL) {
+    user.photoURL = `${process.env.VITE_FRONTEND_URL}/defaultDP.jpg`;
+  }
+  res.status(201).json({ user });
+});
+
+const handleUserSendingData = async (res, user) => {
+  console.log("Handling user data sending for user:", user);
+  const token = jwt.sign(
+    { _id: user._id },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+
+  res.cookie('auth', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  });
+
+  res.status(201).json({
+    user: {
+      _id: user._id,
+      username: user.username,
+      name: user.name,
+      email: user.email
+    }
+  });
+};
+
 
 app.post('/googlelogin', async (req, res) => {
-  const { name, email } = req.body;
-  if (!name || !email) {
-    return res.send({ isValid: false, message: 'Invalid credentials' });
-  }
-  const user = await User.findOne({ email });
-  if (!user) {
-    const username = email.split('@')[0] + Math.floor(Math.random() * 1000 + 1);
-    const newUser = new User({
-      authType: 'google',
-      name,
-      email,
-      username
-    });
-    await newUser.save();
-    res.send({ isValid: true, user: newUser });
-  } else {
-    res.send({ isValid: true, user: { name: user.name, email: user.email, _id: user._id, username: user.username } });
+  try {
+    const user = req.body.user;
+    const { displayName, email, uid, photoURL } = user;
+    if (!displayName || !email || !uid) {
+      return res.status(400).json({ message: 'Missing credentials' });
+    }
+    let userFound = await User.findOne({ googleId: uid });
+    console.log("User: ", userFound);
+    if (!userFound) {
+      const username = email.split('@')[0] + Math.floor(Math.random() * 1000 + 1);
+      const newUser = new User({
+        authType: 'google',
+        name: displayName,
+        email,
+        username,
+        googleId: uid,
+        photoURL: photoURL || `${process.env.VITE_FRONTEND_URL}/defaultDP.jpg`
+      });
+      await newUser.save();
+      userFound = newUser;
+    }
+    await handleUserSendingData(res, userFound);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
 app.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  if (email.includes('@')) {
-    const user = await User.findOne({ email: email });
+  try {
+    const { identifier, password } = req.body;
+
+    if (!identifier || !password) {
+      return res.status(400).json({ message: 'Missing credentials' });
+    }
+
+    const user = identifier.includes('@')
+      ? await User.findOne({ email: identifier })
+      : await User.findOne({ username: identifier });
+
     if (!user) {
-      return res.send({ isValid: false, message: 'Invalid username or password' });
+      return res.status(401).json({ message: 'Invalid username or password' });
     }
-    if (user.authType == 'google') {
-      return res.send({ isValid: false, message: 'The email was registered using google, please use Google login' });
+
+    if (user.authType === 'google') {
+      return res.status(400).json({
+        message: 'This account uses Google login, please login with Google'
+      });
     }
-    bcrypt.compare(password, user.password, function (err, result) {
-      if (result) {
-        res.send({ isValid: true, user: { name: user.name, email: user.email, _id: user._id, username: user.username } });
-      } else {
-        res.send({ isValid: false, message: 'Invalid username or password' });
-      }
-    });
-  } else {
-    const user = await User.findOne({ username: email });
-    if (!user) {
-      return res.send({ isValid: false, message: 'Invalid username or password' });
+
+    const match = await bcrypt.compare(password, user.password);
+
+    if (!match) {
+      return res.status(401).json({ message: 'Invalid username or password' });
     }
-    bcrypt.compare(password, user.password, function (err, result) {
-      if (result) {
-        res.send({ isValid: true, user: { name: user.name, email: user.email, _id: user._id, username: user.username } });
-      } else {
-        res.send({ isValid: false, message: 'Invalid username or password' });
-      }
-    });
+    await handleUserSendingData(res, user);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-app.post('/signup', async (req, res, next) => {
+
+app.post('/signup', async (req, res) => {
   try {
     const { name, username, email, password } = req.body;
-    const foundUser = await User.findOne({ username });
-    if (foundUser) {
-      return res.send({ isValid: false, message: 'Username already taken' });
-    }
-    const foundEmail = await User.findOne({ email });
-    if (foundEmail) {
-      return res.send({ isValid: false, message: 'Email already registered' });
-    }
-    const user = new User({ authType: 'local', name, username, email });
-    const hash = await bcrypt._hash(password, 12);
-    user.password = hash;
-    await user.save();
-    res.send({ isValid: true, user: { name: user.name, email: user.email, _id: user._id, username: user.username } });
-  } catch (e) {
-    console.log(e)
-    res.send({ isValid: false, message: 'Something went wrong' });
-  }
-});
 
-app.get('/profile/:username/:id', async (req, res) => {
-  const { username, id } = req.params;
-  if (!username) {
-    return res.send({ isValid: false, message: 'Invalid username' });
-  }
-  const user = await User.findOne({ username });
-  if (!user) {
-    return res.send({ isValid: false, message: 'Invalid username' });
-  }
-  if (user._id != id) {
-    res.send({
-      isValid: true,
-      user: {
-        name: user.name,
-        username: user.username,
-      }
-    })
-  } else {
-    res.send({
-      isValid: true,
-      user: {
-        name: user.name,
-        username: user.username,
-        email: user.email
-      }
+    if (!name || !username || !email || !password) {
+      return res.status(400).json({
+        message: 'All fields are required'
+      });
+    }
+
+    const existingUsername = await User.findOne({ username });
+    if (existingUsername) {
+      return res.status(409).json({
+        message: 'Username already taken'
+      });
+    }
+
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) {
+      return res.status(409).json({
+        message: 'Email already registered'
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    const user = await User.create({
+      authType: 'local',
+      name,
+      username,
+      email,
+      password: hashedPassword,
+    });
+    await handleUserSendingData(res, user);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: 'Internal server error'
     });
   }
 });
 
-app.patch('/profile/:id', async (req, res) => {
-  const { id } = req.params;
-  if (!id) {
-    return res.send({ isValid: false, message: 'Invalid id' });
-  }
-  const { oldUsername, newUsername, newName } = req.body;
-  if (!oldUsername || !newUsername) {
-    return res.send({ isValid: false, message: 'Missing Usernames' });
-  }
-  const user = await User.findById(id);
-  if (user.username != oldUsername) {
-    return res.send({ isValid: false, message: 'Invalid Credentials' });
-  }
-  const checkNewUser = await User.findOne({ username: newUsername });
-  if (checkNewUser && oldUsername != newUsername) {
-    return res.send({ isValid: false, message: 'Username already taken, please try another one.' });
-  }
-  const updatedData = await User.findByIdAndUpdate(id, { username: newUsername, name: newName }, { new: true });
-  refreshChat();
-  res.send({ isValid: true, user: updatedData });
-})
+app.post('/logout', (req, res) => {
+  res.clearCookie('auth', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+  });
 
-app.get('/chat', async (req, res) => {
-  if (lastrefresh != giveTodayDate()) {
-    refreshChat();
-    console.log("Refreshing due to date change.");
-  }
-  return res.send(allChatsCache || []);
+  res.status(200).json({ message: 'Logged out successfully' });
 });
 
-app.post('/chat', async (req, res) => {
-  const { message, username, id, createdAt } = req.body;
-  if (!username || !message) {
-    return res.send({ isValid: false, message: 'Please login to chat' });
+app.get('/profile/:username', authenticate, async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    const user = await User.findOne({ username }).select(
+      'name username email photoURL'
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        message: 'User not found'
+      });
+    }
+
+    if (user._id.toString() !== req._id) {
+      user.email = undefined; // hide email for other users
+    }
+
+    res.status(201).json({ user });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: 'Server error'
+    });
   }
-  const user = await User.findOne({ username });
+});
+
+app.patch('/profile', authenticate, async (req, res) => {
+  try {
+    const id = req._id;
+    const { photoURL, username, name } = req.body;
+    if (!username && !name && !photoURL) {
+      return res.status(400).json({
+        message: 'Nothing to update',
+      });
+    }
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    const existingUser = await User.findOne({ username });
+    if (existingUser && existingUser._id.toString() !== id) {
+      return res.status(409).json({ message: 'Username already taken' });
+    }
+    const updatedData = await User.findByIdAndUpdate(id, { username, name, photoURL }, { new: true });
+    res.status(201).json({ user: updatedData });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+})
+
+const getAllChats = async () => {
+  const allChats = await Chat.find().populate('user');
+  return allChats.map((chat, i) => {
+    const { username, name } = chat.user;
+    return { _id: chat._id, message: chat.message, username, name, createdAt: chat.createdAt };
+  });
+};
+
+app.get('/chat', async (req, res) => {
+  const allChats = await getAllChats();
+  res.json(allChats);
+});
+
+const insertMessage = async (message, _id) => {
+  if (typeof message !== "string" || !message.trim()) return;
+  const user = await User.findById(_id);
   if (!user) {
-    return res.send({ isValid: false, message: 'Please login to chat' });
-  }
-  if (user._id != id) {
-    return res.send({ isValid: false, message: 'Improper credentials' });
-  }
-  if (!createdAt) {
-    console.log('Time error, please try again.');
-    return res.send({ isValid: false, message: 'Invalid time' });
+    throw new Error("User not found");
   }
   const chat = new Chat({
     message,
-    user,
-    createdAt
+    user: user._id
   });
   const inserted = await chat.save();
-  allChatsCache.push({ _id: inserted._id, message: inserted.message, username: inserted.user.username, name: inserted.user.name, createdAt: inserted.createdAt })
-  res.send({ isValid: true });
-});
+  return { _id: inserted._id, message: inserted.message, username: user.username, name: user.name, createdAt: inserted.createdAt };
+};
 
-app.delete('/chat/:id', async (req, res) => {
-  const { id } = req.params;
-  const { user_id } = req.body;
-  if (!id) {
-    return res.send({ isValid: false, message: 'Invalid id' });
-  }
-  const chat = await Chat.findById(id);
+const updateMessage = async (message, messageId, userId) => {
+  if (typeof message !== "string" || !message.trim()) return;
+  const chat = await Chat.findById(messageId);
   if (!chat) {
-    return res.send({ isValid: false, message: 'Invalid id' });
+    throw new Error("Chat message not found");
   }
-  const globalchatadmin = await User.findOne({ email: process.env.GLOBAL_CHAT_ADMIN });
-  if (chat.user != user_id && user_id != globalchatadmin._id) {
-    return res.send({ isValid: false, message: 'Improper credentials' });
+  if (chat.user.toString() !== userId) {
+    throw new Error("Unauthorized to edit this message");
   }
-  await Chat.findByIdAndDelete(id);
-  allChatsCache = allChatsCache.filter((chat) => chat._id != id);
-  res.send({ isValid: true, id });
-});
+  chat.message = message.trim();
+  await chat.save();
+  return chat;
+};
 
-app.patch('/chat/:id', async (req, res) => {
-  const { id } = req.params;
-  if (!id) {
-    return res.send({ isValid: false, message: 'Invalid id' });
-  }
-  const { message, user_id } = req.body;
-  const chat = await Chat.findById(id);
+const deleteMessage = async (messageId, userId) => {
+  const chat = await Chat.findById(messageId);
   if (!chat) {
-    return res.send({ isValid: false, message: 'Invalid id' });
+    throw new Error("Chat message not found");
   }
-  if (chat.user != user_id) {
-    return res.send({ isValid: false, message: 'Improper credentials' });
+  if (chat.user.toString() !== userId) {
+    throw new Error("Unauthorized to delete this message");
   }
-  await Chat.findByIdAndUpdate(id, { message });
-  allChatsCache = allChatsCache.map((chat) => {
-    if (chat._id == id) {
-      chat.message = message;
+  await Chat.findByIdAndDelete(messageId);
+};
+
+const Clients = new Map();
+
+wss.on('connection', (ws) => {
+  console.log('New client connected');
+  ws.on('message', (raw) => {
+    let data;
+    try {
+      data = JSON.parse(raw.toString());
+    } catch (e) {
+      ws.send(JSON.stringify({ type: "ERROR", message: "Invalid JSON format" }));
+      return;
     }
-    return chat;
+    if (data.type === 'AUTH') {
+      if (!data.userId || typeof data.userId !== 'string') {
+        ws.send(JSON.stringify({ type: "ERROR", message: "Invalid authentication data" }));
+        ws.close();
+        return;
+      }
+
+      ws.userId = data.userId;
+      Clients.set(ws.userId, ws);
+      console.log(`User authenticated with ID: ${ws.userId}`);
+      return;
+    }
+    // Ensure the user is authenticated
+    if (!ws.userId) {
+      ws.send(JSON.stringify({
+        type: "ERROR",
+        message: "Not authenticated"
+      }));
+      return;
+    }
+    if (data.type === 'NEW_MESSAGE') {
+      const { message } = data;
+      insertMessage(message, ws.userId)
+        .then((savedMessage) => {
+          // Broadcast to all connected clients
+          Clients.forEach((clientWs, username) => {
+            if (clientWs.readyState === clientWs.OPEN) {
+              clientWs.send(JSON.stringify({
+                type: 'NEW_MESSAGE',
+                _id: savedMessage._id,
+                message: savedMessage.message,
+                username: savedMessage.username,
+                name: savedMessage.name,
+                createdAt: savedMessage.createdAt
+              }));
+            }
+          });
+        })
+        .catch((err) => {
+          console.error('Error saving message:', err);
+          ws.send(JSON.stringify({
+            type: "ERROR",
+            message: err.message
+          }));
+        });
+    } else if (data.type === 'UPDATE_MESSAGE') {
+      const { message, messageId } = data;
+      updateMessage(message, messageId, ws.userId)
+        .then((updatedMessage) => {
+          Clients.forEach((clientWs, username) => {
+            if (clientWs.readyState === clientWs.OPEN) {
+              clientWs.send(JSON.stringify({
+                type: 'UPDATE_MESSAGE',
+                _id: updatedMessage._id,
+                message: updatedMessage.message
+              }));
+            }
+          });
+        })
+        .catch((err) => {
+          console.error('Error updating message:', err);
+          ws.send(JSON.stringify({
+            type: "ERROR",
+            message: err.message
+          }));
+        });
+    } else if (data.type === 'DELETE_MESSAGE') {
+      const { messageId } = data;
+      deleteMessage(messageId, ws.userId)
+        .then(() => {
+          Clients.forEach((clientWs, username) => {
+            if (clientWs.readyState === clientWs.OPEN) {
+              clientWs.send(JSON.stringify({
+                type: 'DELETE_MESSAGE',
+                _id: messageId
+              }));
+            }
+          });
+        })
+        .catch((err) => {
+          console.error('Error deleting message:', err);
+          ws.send(JSON.stringify({
+            type: "ERROR",
+            message: err.message
+          }));
+        });
+    }
   });
-  res.send({ isValid: true, id });
+  ws.on('close', () => {
+    console.log('Client disconnected');
+    if (ws.username) {
+      Clients.delete(ws.username);
+    }
+  });
 });
 
-app.listen(3000, () => {
+server.listen(3000, () => {
   console.log('Server is running on port 3000');
 });
