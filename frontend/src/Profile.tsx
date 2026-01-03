@@ -3,7 +3,6 @@ import { redirect, useNavigate, useParams } from 'react-router-dom';
 import { User } from './types/user';
 import { Alert } from './types/alert';
 import { createNewContact } from './helpers/chatHelper';
-import { red } from 'colors';
 
 type ProfileProps = {
   user: User | null;

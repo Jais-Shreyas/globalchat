@@ -92,9 +92,10 @@ export default function Navbar({ dark, changeMode, page = 'home', user, changeUs
                     </Link>
                   </li>
                   <li className="nav-item mobile-border">
-                    <button className='nav-link btn btn-link'
+                    <div className='nav-link text-left'
                       onClick={logout}
-                    >Logout</button>
+                      style={{ cursor: 'pointer' }}
+                    >Logout</div>
                   </li>
                 </>
               )}
