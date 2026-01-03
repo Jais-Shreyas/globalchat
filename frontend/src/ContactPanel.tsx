@@ -33,15 +33,19 @@ export default function ContactPanel({ dark, contacts, isMobile, setMobileView, 
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
   useEffect(() => {
-    fetch(`${backendUrl}/contacts`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      credentials: 'include'
-    })
-      .then(response => response.json())
-      .then(data => {
+    const fetchContacts = async () => {
+      try {
+        const response = await fetch(`${backendUrl}/contacts`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to fetch contacts');
+        }
         setContacts(data);
         if (!activeContact) {
           const globalChat = data.find((contact: Contact) => contact.type === 'global');
@@ -49,7 +53,11 @@ export default function ContactPanel({ dark, contacts, isMobile, setMobileView, 
             setActiveContact(globalChat);
           }
         }
-      });
+      } catch (error) {
+        console.error('Error fetching contacts:', error);
+      }
+    }
+    fetchContacts();
   }, []);
 
 
@@ -85,7 +93,7 @@ export default function ContactPanel({ dark, contacts, isMobile, setMobileView, 
         maxWidth: (isMobile ? '100%' : '480px'),
         padding: '1rem 1rem'
       }}
-      
+
     >
       <h3>Contacts</h3>
       <div className='mb-2 d-flex flex-row'>

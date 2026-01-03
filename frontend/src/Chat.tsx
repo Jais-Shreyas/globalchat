@@ -35,21 +35,31 @@ export default function Chat({ wsRef, dark, user, showAlert }: ChatProps) {
   const [mobileView, setMobileView] = useState<'contacts' | 'chat'>('contacts');
 
   useEffect(() => {
-    if (activeContact === null) return;
-    fetch(`${backendUrl}/chats/${activeContact.conversationId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      credentials: 'include',
-    })
-      .then(response => response.json())
-      .then(data => {
+    const fetchMessages = async () => {
+      try {
+        if (activeContact === null) return;
+        const response = await fetch(`${backendUrl}/chats/${activeContact.conversationId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+        });
+        let data = await response.json();
+        if (!response.ok) {
+          showAlert({ type: 'danger', message: data.message || 'Failed to fetch messages' });
+          return;
+        }
         if (!Array.isArray(data) || data.length === 0) {
           data = [{ message: 'No messages yet. Start the conversation!', username: 'System', name: 'System', createdAt: new Date(), _id: '0' }];
         }
-        setMessages(data)
-      });
+        setMessages(data);
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+        showAlert({ type: 'danger', message: 'Error fetching messages' });
+      }
+    }
+    fetchMessages();
   }, [activeContact]);
 
   useEffect(() => {
