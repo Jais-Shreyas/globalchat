@@ -45,6 +45,7 @@ const startServer = async () => {
 
     //   next();
     // });
+    app.set('trust proxy', 1);
 
     app.use('/', authRoutes);
     app.use('/', profileRoutes);
