@@ -1,6 +1,5 @@
 import SendIcon from '@mui/icons-material/Send';
 import EditIcon from '@mui/icons-material/Edit';
-import { User } from "./types/user";
 
 type InputMsgProp = {
   msg: string;
@@ -9,13 +8,14 @@ type InputMsgProp = {
 
 type InputProps = {
   dark: boolean;
-  user: User;
+  focusRef: React.RefObject<HTMLTextAreaElement> | null;
+  activeContact: { conversationId: string } | null;
   inputMessage: InputMsgProp;
   setInputMessage: (inputMessage: InputMsgProp) => void;
   insertMessage: () => void;
 }
 
-export default function Input({ dark, user, inputMessage, setInputMessage, insertMessage }: InputProps) {
+export default function Input({ dark, focusRef, activeContact, inputMessage, setInputMessage, insertMessage }: InputProps) {
   const handleSend = () => {
     if (!inputMessage.msg) return;
     insertMessage();
@@ -31,20 +31,24 @@ export default function Input({ dark, user, inputMessage, setInputMessage, inser
   }
   return (
     <>
-      <form onSubmit={(e) => { e.preventDefault(); handleSend() }} className={`container input-group mb-1 fixed-bottom`}>
+      <form
+        onSubmit={(e) => { e.preventDefault(); handleSend() }}
+        className={`input-group mb-1 fixed-bottom`}
+        style={{ maxWidth: '100%',  backgroundColor: dark ? '#212529' : 'white', height: '2.5rem' }}
+        >
         <textarea
+          ref={focusRef}
           rows={1}
-          autoFocus
-          placeholder={`${user.username ? "Enter your message" : "Login required"}`}
+          placeholder={`${!activeContact ? 'Select a contact to start chatting' : 'Type your message here...'}`}
           value={inputMessage.msg || ''}
           className={`form-control btn-outline-success ${dark ? 'text-light bg-dark' : 'text-dark bg-light'}`}
           onChange={(e) => setInputMessage({ ...inputMessage, msg: e.target.value })}
           onKeyDown={handleKeyDown}
           aria-label="Your message"
           aria-describedby="button-addon2"
-          readOnly={!user.username ? true : false}
+          disabled={!activeContact}
         ></textarea>
-        <button className={`btn btn-success  ${!user || !inputMessage.msg ? 'disabled' : ''}`} type="button" id="button-addon2" onClick={handleSend} >{inputMessage._id ? <EditIcon /> : <SendIcon />}</button>
+        <button className={`btn btn-success  ${!inputMessage.msg || !activeContact ? 'disabled' : ''}`} type="button" id="button-addon2" onClick={handleSend} >{inputMessage._id ? <EditIcon /> : <SendIcon />}</button>
       </form>
     </>
   )

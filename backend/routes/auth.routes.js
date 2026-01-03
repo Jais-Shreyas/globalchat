@@ -2,6 +2,7 @@ import express from 'express';
 import bcrypt from 'bcrypt';
 import User from '../models/user.js'
 import { handleUserDataSend } from '../services/auth.service.js';
+import Conversation from '../models/conversation.js';
 
 const router = express.Router();
 
@@ -12,7 +13,6 @@ router.post('/googlelogin', async (req, res) => {
       return res.status(400).json({ message: 'Missing credentials' });
     }
     let userFound = await User.findOne({ googleId: uid });
-    console.log("User: ", userFound);
     if (!userFound) {
       const username = email.split('@')[0] + Math.floor(Math.random() * 1000 + 1);
       const newUser = new User({
@@ -21,11 +21,30 @@ router.post('/googlelogin', async (req, res) => {
         email,
         username,
         googleId: uid,
-        photoURL: photoURL || `${process.env.VITE_FRONTEND_URL}/defaultDP.jpg`
+        photoURL: photoURL
       });
       await newUser.save();
+
+      // add this new user to global conversation
+      let globalConv = await Conversation.findOne({ type: 'global' });
+      globalConv.participants.push(newUser._id);
+      await globalConv.save();
+
       userFound = newUser;
     }
+    let modified = false;
+    if (userFound.email !== email) {
+      userFound.email = email;
+      modified = true;
+    }
+    if (userFound.photoURL !== photoURL) {
+      userFound.photoURL = photoURL;
+      modified = true;
+    }
+    if (modified) {
+      await userFound.save();
+    }
+
     await handleUserDataSend(res, userFound);
 
   } catch (err) {
@@ -103,6 +122,13 @@ router.post('/signup', async (req, res) => {
       email,
       password: hashedPassword,
     });
+    await user.save();
+
+    // add this new user to global conversation
+    let globalConv = await Conversation.findOne({ type: 'global' });
+    globalConv.participants.push(user._id);
+    await globalConv.save();
+    
     await handleUserDataSend(res, user);
 
   } catch (err) {

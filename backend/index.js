@@ -4,6 +4,7 @@ import chatRoutes from './routes/chat.routes.js';
 
 import { connectDB } from './config/db.js'
 import { initWebSocket } from './websocket/index.js';
+import { ensureGlobalConversation } from './bootstrap/globalConversation.js';
 
 import express from 'express';
 const app = express();
@@ -21,9 +22,10 @@ import methodOverride from 'method-override';
 app.use(methodOverride('_method'));
 
 import cors from 'cors';
-app.use(cors({ origin: process.env.VITE_FRONTEND_URL, credentials: true }));
+app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
 
 connectDB();
+ensureGlobalConversation();
 initWebSocket(server);
 
 app.use(express.json());

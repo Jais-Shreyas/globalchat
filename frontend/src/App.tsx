@@ -63,7 +63,6 @@ function App() {
 
     ws.onopen = () => {
       console.log("WebSocket connected");
-      showAlert({ type: 'success', message: 'Connected to chat server' });
       reconnectDelay.current = 1000; // reset delay on successful connection
       ws.send(JSON.stringify({ type: 'AUTH', userId: user._id })); // id remains same even after user changes username
     };
@@ -174,13 +173,21 @@ function App() {
         </>
     },
     {
+      path: '/chat/:username',
+      element:
+        <>
+          <Navbar page='home' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
+          <Chat wsRef={wsRef} dark={dark} user={user} showAlert={showAlert} />
+        </>
+    },
+    {
       path: "*",
       element:
         <>
           <Navbar page='home' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
           <Chat wsRef={wsRef} dark={dark} user={user} showAlert={showAlert} />
         </>
-    }
+    },
   ]);
   return (
     <>

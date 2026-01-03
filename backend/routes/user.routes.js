@@ -12,10 +12,8 @@ router.get('/me', authenticate, async (req, res) => {
   if (!user) {
     return res.status(401).json({ message: 'User not found' });
   }
-  if (!user.photoURL) {
-    user.photoURL = `${process.env.VITE_FRONTEND_URL}/defaultDP.jpg`;
-  }
-  res.status(201).json({ user });
+  
+  res.status(200).json({ user });
 });
 
 router.get('/profile/:username', authenticate, async (req, res) => {
@@ -36,7 +34,7 @@ router.get('/profile/:username', authenticate, async (req, res) => {
       user.email = undefined; // hide email for other users
     }
 
-    res.status(201).json({ user });
+    res.status(200).json({ user });
 
   } catch (err) {
     console.error(err);

@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 export default function LandingPage() {
   return (
     <div className="container-fluid px-0" style={{ minHeight: "100vh" }}>
-      <div className="row align-items-center" style={{ minHeight: "100vh" }}>
+      <div className="row g-0 align-items-center" style={{ minHeight: "100vh" }}>
         <div className="col-md-6 text-center">
           <img
             src="/android-chrome-512x512.png"

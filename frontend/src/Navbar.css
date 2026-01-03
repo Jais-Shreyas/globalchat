@@ -1,0 +1,8 @@
+@media (max-width: 767px) {
+  .mobile-border {
+    border-bottom: 1px solid white;
+  }
+  .mobile-outer {
+    border: 1px solid white;
+  }
+}
