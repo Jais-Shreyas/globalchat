@@ -4,7 +4,6 @@ import { User } from './types/user';
 import { Alert } from './types/alert';
 import { createNewContact } from './helpers/chatHelper';
 import { apiFetch } from './helpers/fetchHelper';
-import { set } from 'mongoose';
 
 type ProfileProps = {
   user: User | null;
