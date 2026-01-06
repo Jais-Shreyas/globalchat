@@ -1,10 +1,30 @@
+import jwt from 'jsonwebtoken';
 import Conversation from '../models/conversation.js';
 import { insertMessage, updateMessage, deleteMessage } from '../services/chat.service.js';
 import { Clients } from './clients.js';
 import { emitToUsers } from './emitter.js';
 
-export const handleWSConnection = (ws) => {
-  console.log('New client connected');
+export const handleWSConnection = (ws, req) => {
+  try {
+    const params = new URLSearchParams(req.url.split('?')[1]);
+    const token = params.get('token');
+
+    if (!token) {
+      ws.close(1008, 'Authentication token missing');
+      return;
+    }
+
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+
+    ws.userId = payload._id;
+    Clients.set(ws.userId, ws);
+
+    console.log(`User authenticated with ID: ${ws.userId}`);
+  } catch (err) {
+    ws.close(1008, 'Authentication failed');
+    return;
+  }
+
   ws.on('message', async (raw) => {
     let data;
     try {
@@ -13,22 +33,7 @@ export const handleWSConnection = (ws) => {
       ws.send(JSON.stringify({ type: "ERROR", message: "Invalid JSON format" }));
       return;
     }
-    if (data.type === 'AUTH') {
-      if (!data.userId || typeof data.userId !== 'string') {
-        ws.send(JSON.stringify({ type: "ERROR", message: "Invalid authentication data" }));
-        ws.close();
-        return;
-      }
 
-      ws.userId = data.userId;
-      Clients.set(ws.userId, ws);
-      console.log(`User authenticated with ID: ${ws.userId}`);
-      return;
-    }
-    // Ensure the user is authenticated for any other task
-    if (!ws.userId) {
-      return ws.send(JSON.stringify({ type: "ERROR", message: "Not authenticated" }));
-    }
     if (data.type === 'NEW_MESSAGE') {
       const { message, conversationId } = data;
 
@@ -109,9 +114,9 @@ export const handleWSConnection = (ws) => {
     }
   });
   ws.on('close', () => {
-    console.log('Client disconnected');
-    if (ws.username) {
-      Clients.delete(ws.username);
+    if (ws.userId) {
+      console.log(`Connection closed for user ID: ${ws.userId}`);
+      Clients.delete(ws.userId);
     }
   });
 };

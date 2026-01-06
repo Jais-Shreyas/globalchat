@@ -6,6 +6,7 @@ import type { Contact } from './types/contact';
 import type { Message } from './types/Message';
 import ContactPanel from './ContactPanel';
 import ChatWindow from './ChatWindow';
+import { apiFetch } from './helpers/fetchHelper';
 
 type ChatProps = {
   wsRef: React.RefObject<WebSocket | null>;
@@ -36,27 +37,16 @@ export default function Chat({ wsRef, dark, user, showAlert }: ChatProps) {
 
   useEffect(() => {
     const fetchMessages = async () => {
+      if (activeContact === null) return;
       try {
-        if (activeContact === null) return;
-        const response = await fetch(`${backendUrl}/chats/${activeContact.conversationId}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include',
-        });
-        let data = await response.json();
-        if (!response.ok) {
-          showAlert({ type: 'danger', message: data.message || 'Failed to fetch messages' });
-          return;
-        }
+        let data = await apiFetch(`/chats/${activeContact.conversationId}`);
         if (!Array.isArray(data) || data.length === 0) {
           data = [{ message: 'No messages yet. Start the conversation!', username: 'System', name: 'System', createdAt: new Date(), _id: '0' }];
         }
         setMessages(data);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching messages:', error);
-        showAlert({ type: 'danger', message: 'Error fetching messages' });
+        showAlert({ type: 'danger', message: error.message || 'Could not fetch messages' });
       }
     }
     fetchMessages();

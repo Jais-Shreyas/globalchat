@@ -9,6 +9,8 @@ import './Navbar.css';
 type NavbarProps = {
   dark: boolean;
   changeMode: () => void;
+  wsRef: React.MutableRefObject<WebSocket | null>;
+  manualCloseRef: React.MutableRefObject<boolean>;
   page?: 'home' | 'about' | 'login' | 'signup' | 'profile';
   user: User | null;
   changeUser: (user: User | null) => void;
@@ -16,20 +18,16 @@ type NavbarProps = {
   showAlert: (alert: AlertType) => void;
 }
 
-export default function Navbar({ dark, changeMode, page = 'home', user, changeUser, alert, showAlert }: NavbarProps) {
+export default function Navbar({ dark, changeMode, wsRef, manualCloseRef, page = 'home', user, changeUser, alert, showAlert }: NavbarProps) {
   const logout = async () => {
-    try {
-      await fetch(`${import.meta.env.VITE_BACKEND_URL}/logout`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-    } catch (err) {
-      console.error(err);
-      showAlert({ type: 'danger', message: 'Error logging out. Please try again.' });
-    } finally {
-      changeUser(null);
-      showAlert({ type: 'success', message: 'Logged out successfully!' });
-    }
+    manualCloseRef.current = true;
+    wsRef.current?.close();
+    wsRef.current = null;
+    
+    localStorage.removeItem('globalchat-authToken');
+    changeUser(null);
+
+    showAlert({ type: 'success', message: 'Logged out successfully!' });
   }
   return (
     <>
@@ -74,7 +72,7 @@ export default function Navbar({ dark, changeMode, page = 'home', user, changeUs
                 <>
                   <li className="nav-item mobile-border">
                     <Link className={`nav-link ${page === 'home' ? 'active' : ''}`} to={`/profile/${user.username}`}>
-                      {user.name}
+                      {user.name}&nbsp;
                       <img
                         src={user.photoURL || "/defaultDP.jpg"}
                         alt="defaultDP"

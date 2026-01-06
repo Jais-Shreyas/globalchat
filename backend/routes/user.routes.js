@@ -47,7 +47,7 @@ router.get('/profile/:username', authenticate, async (req, res) => {
 router.patch('/profile', authenticate, async (req, res) => {
   try {
     const id = req._id;
-    const { photoURL, username, name } = req.body;
+    const { photoURL, username, name, email } = req.body;
     if (!username && !name && !photoURL) {
       return res.status(400).json({
         message: 'Nothing to update',
@@ -61,8 +61,8 @@ router.patch('/profile', authenticate, async (req, res) => {
     if (existingUser && existingUser._id.toString() !== id) {
       return res.status(409).json({ message: 'Username already taken' });
     }
-    const updatedData = await User.findByIdAndUpdate(id, { username, name, photoURL }, { new: true });
-    res.status(201).json({ user: updatedData });
+    const updatedData = await User.findByIdAndUpdate(id, { name, username, email, photoURL }, { new: true });
+    res.status(200).json({ user: updatedData });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

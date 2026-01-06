@@ -10,10 +10,12 @@ import Profile from './Profile';
 import type { Alert } from './types/alert'
 import type { User } from './types/user'
 import LandingPage from './LandingPage';
+import { apiFetch } from './helpers/fetchHelper';
 
 function App() {
   const reconnectDelay = useRef(1000); // 1 second initial delay
   const reconnectTimer = useRef<number | null>(null);
+  const manualCloseRef = useRef<boolean>(false);
   const wsRef = useRef<WebSocket | null>(null);
 
   const [alert, setAlert] = useState<Alert | null>(null);
@@ -28,78 +30,90 @@ function App() {
 
   const initialFetchUser = async (): Promise<User | null> => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/me`, {
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        return null;
+      const data = await apiFetch('/me');
+      return data.user as User;
+    } catch (err: any) {
+      if (err.message === 'Unauthorized') {
+        return null; // normal logged-out state
       }
-
-      const json = await response.json();
-      return json.user as User;
-    } catch (err) {
-      console.error(err);
+      console.error(err.message);
       return null;
     }
   };
 
+
   useEffect(() => {
+    let mounted = true;
+
     const fetchUser = async () => {
       const fetchedUser = await initialFetchUser();
-      setUser(fetchedUser);
+      if (mounted) setUser(fetchedUser);
     };
-
     fetchUser();
-  }, [user?._id]);
+
+    return () => { mounted = false; };
+  }, []);
 
 
-  const connectWebSocket = () => {
-    if (!user) return;
+  const connectWebSocket = (cancelled: boolean) => {
+    if (cancelled) return;
+
+    const token = localStorage.getItem('globalchat-authToken');
+    if (!token) return;
 
     const wsUrl = import.meta.env.VITE_BACKEND_URL.replace(/^http/, 'ws');
-    const ws = new WebSocket(wsUrl);
+    const ws = new WebSocket(`${wsUrl}?token=${token}`);
     wsRef.current = ws;
 
     ws.onopen = () => {
       console.log("WebSocket connected");
       reconnectDelay.current = 1000; // reset delay on successful connection
-      ws.send(JSON.stringify({ type: 'AUTH', userId: user._id })); // id remains same even after user changes username
     };
 
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      ws.close();
-    };
+    ws.onerror = () => { ws.close(); }
 
-    ws.onclose = () => {
+    ws.onclose = (e) => {
+      if (manualCloseRef.current) {
+        manualCloseRef.current = false;
+        console.log("WebSocket manually closed");
+        return;
+      }
+
+      if (e.code === 1008) {
+        localStorage.removeItem('globalchat-authToken');
+        setUser(null);
+        showAlert({ type: 'warning', message: 'Session expired. Please log in again.' });
+        return;
+      }
+      
+      if (cancelled || !user) return;
+      
       console.log(`WebSocket disconnected, attempting to reconnect in ${reconnectDelay.current} ms`);
       showAlert({ type: 'warning', message: 'Disconnected from chat server. Reconnecting...' });
+
       reconnectTimer.current = window.setTimeout(() => {
-        connectWebSocket();
         reconnectDelay.current = Math.min(reconnectDelay.current * 2, 30000); // exponential backoff up to 30 seconds
+        connectWebSocket(cancelled);
       }, reconnectDelay.current);
     };
   };
 
   useEffect(() => {
-    if (!user) {
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-      return;
-    }
+    if (!user) return;
 
-    connectWebSocket();
+    let cancelled = false;
+    connectWebSocket(cancelled);
 
-    return () => {  // cleanup on unmount or user change
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
+    return () => {
+      cancelled = true;
+
       if (reconnectTimer.current) {
         clearTimeout(reconnectTimer.current);
+        reconnectTimer.current = null;
+      }
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
       }
     };
   }, [user?._id]);
@@ -136,7 +150,7 @@ function App() {
           <LandingPage />
           :
           <>
-            <Navbar page='home' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
+            <Navbar page='home' dark={dark} wsRef={wsRef} manualCloseRef={manualCloseRef} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
             <Chat wsRef={wsRef} dark={dark} user={user} showAlert={showAlert} />
           </>
     },
@@ -144,7 +158,7 @@ function App() {
       path: "/about",
       element:
         <>
-          <Navbar page='about' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
+          <Navbar page='about' dark={dark} wsRef={wsRef} manualCloseRef={manualCloseRef} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
           <About dark={dark} />
         </>
     },
@@ -152,7 +166,7 @@ function App() {
       path: "/login",
       element:
         <>
-          <Navbar page='login' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
+          <Navbar page='login' dark={dark} wsRef={wsRef} manualCloseRef={manualCloseRef} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
           <Login changeUser={changeUser} showAlert={showAlert} />
         </>
     },
@@ -160,7 +174,7 @@ function App() {
       path: "/signup",
       element:
         <>
-          <Navbar page='signup' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
+          <Navbar page='signup' dark={dark} wsRef={wsRef} manualCloseRef={manualCloseRef} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
           <Signup changeUser={changeUser} showAlert={showAlert} />
         </>
     },
@@ -168,7 +182,7 @@ function App() {
       path: "/profile/:username",
       element:
         <>
-          <Navbar page='profile' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
+          <Navbar page='profile' dark={dark} wsRef={wsRef} manualCloseRef={manualCloseRef} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
           <Profile user={user} changeUser={changeUser} showAlert={showAlert} />
         </>
     },
@@ -176,7 +190,7 @@ function App() {
       path: '/chat/:username',
       element:
         <>
-          <Navbar page='home' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
+          <Navbar page='home' dark={dark} wsRef={wsRef} manualCloseRef={manualCloseRef} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
           <Chat wsRef={wsRef} dark={dark} user={user} showAlert={showAlert} />
         </>
     },
@@ -184,7 +198,7 @@ function App() {
       path: "*",
       element:
         <>
-          <Navbar page='home' dark={dark} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
+          <Navbar page='home' dark={dark} wsRef={wsRef} manualCloseRef={manualCloseRef} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
           <Chat wsRef={wsRef} dark={dark} user={user} showAlert={showAlert} />
         </>
     },

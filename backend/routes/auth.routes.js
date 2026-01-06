@@ -70,7 +70,7 @@ router.post('/login', async (req, res) => {
     }
 
     if (user.authType === 'google') {
-      return res.status(400).json({
+      return res.status(409).json({
         message: 'This account uses Google login, please login with Google'
       });
     }
@@ -139,15 +139,9 @@ router.post('/signup', async (req, res) => {
   }
 });
 
-router.post('/logout', (req, res) => {
-  const isProd = process.env.NODE_ENV === 'production';
-  res.clearCookie('auth', {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? 'none' : 'lax',
-  });
-
-  res.status(200).json({ message: 'Logged out successfully' });
-});
+// router.post('/logout', (req, res) => {
+//   const isProd = process.env.NODE_ENV === 'production';
+//   res.status(200).json({ message: 'Logged out successfully' });
+// });
 
 export default router;

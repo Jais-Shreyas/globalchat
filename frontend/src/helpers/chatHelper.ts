@@ -1,24 +1,20 @@
 import { Alert } from "../types/alert";
+import { apiFetch } from "./fetchHelper";
 
 export const createNewContact = async (username: string): Promise<Alert> => {
   try {
-    const backendUrl = import.meta.env.VITE_BACKEND_URL;
-    const response = await fetch(`${backendUrl}/contacts/new`, {
+    console.log("Creating new contact with username: ", username);
+    const data = await apiFetch(`/contacts/new`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      credentials: 'include',
       body: JSON.stringify({ type: 'private', username })
     });
-    const data = await response.json();
-    if (response.ok) {
-      return ({ type: 'success', message: 'New conversation started!' });
-    } else {
-      return ({ type: 'danger', message: data.message });
-    }
-  } catch (e) {
+    console.log("Create Contact Response: ", data);
+    return ({ type: 'success', message: data.message || 'Contact created successfully' });
+  } catch (e: any) {
     console.error(e);
-    return ({ type: 'danger', message: 'Could not add contact' });
+    return ({ type: 'danger', message: e.message || 'Could not create contact' });
   }
 };

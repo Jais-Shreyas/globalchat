@@ -4,6 +4,7 @@ import { auth, provider, signInWithPopup, GoogleAuthProvider } from './firebase'
 import { useNavigate } from 'react-router-dom'
 import type { User } from './types/user'
 import type { Alert } from './types/alert'
+import { apiFetch } from './helpers/fetchHelper'
 
 type ContinueWithGoogleButtonProps = {
   changeUser: (user: User | null) => void;
@@ -19,40 +20,30 @@ const ContinueWithGoogleButton = ({ changeUser, showAlert }: ContinueWithGoogleB
       if (!firebaseUser || !firebaseUser.email || !firebaseUser.uid) {
         throw new Error('No user found after Google sign-in.');
       }
-      const { displayName, email, uid, photoURL } = firebaseUser;
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/googlelogin`, {
-        method: "POST",
+      const payload = {
+        displayName: firebaseUser.displayName,
+        email: firebaseUser.email,
+        uid: firebaseUser.uid,
+        photoURL: firebaseUser.photoURL
+      }
+      const json = await apiFetch('/googlelogin', {
+        method: 'POST',
         headers: {
-          'Content-type': 'application/json'
+          'Content-Type': 'application/json'
         },
-        credentials: 'include',
-        body: JSON.stringify({ displayName, email, uid, photoURL })
+        body: JSON.stringify(payload)
       });
-      const json = await response.json();
-      if (response.ok) {
-        const { username, email, name, _id, photoURL } = json.user;
-        changeUser({ username, email, name, _id, photoURL });
-        showAlert({ type: 'success', message: 'Welcome back!' });
-        navigate('/');
-      } else {
-        changeUser(null);
-        showAlert({ type: 'danger', message: json.message });
-      }
+      const { token, user } = json;
+      localStorage.setItem('globalchat-authToken', token);
+      changeUser(user);
+      showAlert({ type: 'success', message: 'Logged in successfully' });
+      navigate('/');
     } catch (error: any) {
-      if (error instanceof TypeError) {
-        showAlert({
-          type: 'danger',
-          message: 'Unable to reach server. Please try again later.'
-        });
-      } else {
-        showAlert({
-          type: 'danger',
-          message: error.message || 'Google sign-in failed'
-        });
-      }
+      console.error('Google Login Error: ', error);
+      showAlert({ type: 'danger', message: error.message || 'Google login failed' });
+      localStorage.removeItem('globalchat-authToken');
       changeUser(null);
     }
-
   }
   return (
     <div onClick={handleLogin}>

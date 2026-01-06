@@ -62,36 +62,37 @@ router.post('/contacts/new', authenticate, async (req, res) => {
         type: 'private',
         participants: { $all: [user._id, otherUser._id] }
       });
-      if (!conversation) {
+      const convExists = (conversation !== null);
+      if (!convExists) {
         conversation = new Conversation({
           type: 'private',
           participants: [req._id, otherUser._id]
         });
         await conversation.save();
+        emitToUsers([req._id], {
+          type: 'NEW_CONTACT',
+          contact: {
+            name: otherUser.name,
+            username: otherUser.username,
+            photoURL: otherUser.photoURL,
+            conversationId: conversation._id,
+            type: 'private'
+          },
+          creatorId: req._id
+        });
+        emitToUsers([otherUser._id.toString()], {
+          type: 'NEW_CONTACT',
+          contact: {
+            name: user.name,
+            username: user.username,
+            photoURL: user.photoURL,
+            conversationId: conversation._id,
+            type: 'private'
+          },
+          creatorId: req._id
+        });
       }
-      emitToUsers([req._id], {
-        type: 'NEW_CONTACT',
-        contact: {
-          name: otherUser.name,
-          username: otherUser.username,
-          photoURL: otherUser.photoURL,
-          conversationId: conversation._id,
-          type: 'private'
-        },
-        creatorId: req._id
-      });
-      emitToUsers([otherUser._id.toString()], {
-        type: 'NEW_CONTACT',
-        contact: {
-          name: user.name,
-          username: user.username,
-          photoURL: user.photoURL,
-          conversationId: conversation._id,
-          type: 'private'
-        },
-        creatorId: req._id
-      });
-      return res.status(201).json({ message: 'Contact created' });
+      return res.status(201).json({ message: convExists ? 'Contact already exists' : 'New contact created' });
     } else {
       return res.status(400).json({ message: 'Invalid conversation type' });
     }

@@ -7,15 +7,6 @@ export const handleUserDataSend = async (res, user) => {
     { expiresIn: '7d' }
   );
 
-  const isProd = process.env.NODE_ENV === 'production';
-
-  res.cookie('auth', token, {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? 'none' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000
-  });
-
   res.status(201).json({
     user: {
       _id: user._id,
@@ -23,6 +14,7 @@ export const handleUserDataSend = async (res, user) => {
       name: user.name,
       email: user.email,
       photoURL: user.photoURL
-    }
+    },
+    token
   });
 };

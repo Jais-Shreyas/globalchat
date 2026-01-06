@@ -3,6 +3,7 @@ import { Contact } from "./types/contact";
 import { Message } from "./types/Message";
 import { createNewContact } from "./helpers/chatHelper";
 import { Alert } from "./types/alert";
+import { apiFetch } from "./helpers/fetchHelper";
 
 type ContactPanelProps = {
   dark: boolean;
@@ -35,17 +36,7 @@ export default function ContactPanel({ dark, contacts, isMobile, setMobileView, 
   useEffect(() => {
     const fetchContacts = async () => {
       try {
-        const response = await fetch(`${backendUrl}/contacts`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
-        });
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.message || 'Failed to fetch contacts');
-        }
+        const data = await apiFetch('/contacts');
         setContacts(data);
         if (!activeContact) {
           const globalChat = data.find((contact: Contact) => contact.type === 'global');
@@ -53,8 +44,9 @@ export default function ContactPanel({ dark, contacts, isMobile, setMobileView, 
             setActiveContact(globalChat);
           }
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching contacts:', error);
+        showAlert({ type: 'danger', message: error.message || 'Could not fetch contacts' });
       }
     }
     fetchContacts();
