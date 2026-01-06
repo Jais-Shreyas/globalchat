@@ -140,10 +140,11 @@ router.post('/signup', async (req, res) => {
 });
 
 router.post('/logout', (req, res) => {
+  const isProd = process.env.NODE_ENV === 'production';
   res.clearCookie('auth', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
   });
 
   res.status(200).json({ message: 'Logged out successfully' });
