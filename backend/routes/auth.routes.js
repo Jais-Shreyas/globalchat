@@ -55,7 +55,8 @@ router.post('/googlelogin', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    const { identifier, password } = req.body;
+    const { password } = req.body;
+    const identifier = req.body.identifier?.toLowerCase().trim();
 
     if (!identifier || !password) {
       return res.status(400).json({ message: 'Missing credentials' });
@@ -91,7 +92,9 @@ router.post('/login', async (req, res) => {
 
 router.post('/signup', async (req, res) => {
   try {
-    const { name, username, email, password } = req.body;
+    const { name, password } = req.body;
+    const username = req.body.username?.toLowerCase();
+    const email = req.body.email?.toLowerCase();
 
     if (!name || !username || !email || !password) {
       return res.status(400).json({
@@ -99,17 +102,10 @@ router.post('/signup', async (req, res) => {
       });
     }
 
-    const existingUsername = await User.findOne({ username });
-    if (existingUsername) {
+    const userAvailable = await User.findOne({ $or: [{ email }, { username }] });
+    if (userAvailable) {
       return res.status(409).json({
-        message: 'Username already taken'
-      });
-    }
-
-    const existingEmail = await User.findOne({ email });
-    if (existingEmail) {
-      return res.status(409).json({
-        message: 'Email already registered'
+        message: 'Username or Email already in use'
       });
     }
 
@@ -138,10 +134,5 @@ router.post('/signup', async (req, res) => {
     });
   }
 });
-
-// router.post('/logout', (req, res) => {
-//   const isProd = process.env.NODE_ENV === 'production';
-//   res.status(200).json({ message: 'Logged out successfully' });
-// });
 
 export default router;

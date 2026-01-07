@@ -11,7 +11,13 @@ router.get('/contacts', authenticate, async (req, res) => {
   try {
     const conversations = await Conversation.find({ participants: req._id })
       .populate('participants', 'username name photoURL')
+      .populate({
+        path: 'lastMessage',
+        select: 'message sender createdAt updatedAt',
+        populate: { path: 'sender', select: 'username name' }
+      })
       .select('type name participants');
+    console.log("Fetched Conversations: ", conversations[0]);
     const userContacts = conversations.map(conv => {
       let contactInfo;
       if (conv.type === 'global') {
@@ -34,7 +40,7 @@ router.get('/contacts', authenticate, async (req, res) => {
           photoURL: otherParticipant.photoURL,
         };
       }
-      return { ...contactInfo, type: conv.type, conversationId: conv._id };
+      return { ...contactInfo, type: conv.type, conversationId: conv._id, lastMessage: conv.lastMessage ? { message: conv.lastMessage.message, name: conv.lastMessage.sender.name, username: conv.lastMessage.sender.username, sentAt: conv.lastMessage.updatedAt || conv.lastMessage.createdAt } : null };
     });
     res.status(200).json(userContacts);
   } catch (err) {

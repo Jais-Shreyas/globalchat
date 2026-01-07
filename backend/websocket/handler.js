@@ -55,6 +55,9 @@ export const handleWSConnection = (ws, req) => {
           conversationId
         });
 
+        conversation.lastMessage = insertedMessage._id;
+        await conversation.save();
+
       } catch (err) {
         console.error('Error saving message:', err);
         ws.send(JSON.stringify({ type: "ERROR", message: err.message }));
@@ -102,6 +105,13 @@ export const handleWSConnection = (ws, req) => {
           messageId,
           conversationId
         });
+        if (conversation.lastMessage && conversation.lastMessage.toString() === messageId) {
+          const lastMsg = await Message.find({ conversation: conversationId })
+            .sort({ createdAt: -1 })
+            .limit(1);
+          conversation.lastMessage = lastMsg.length > 0 ? lastMsg[0]._id : null;
+          await conversation.save();
+        }
       } catch (err) {
         console.error('Error deleting message:', err);
         ws.send(JSON.stringify({

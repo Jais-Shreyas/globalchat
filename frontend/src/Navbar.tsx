@@ -2,7 +2,7 @@ import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import { Link } from "react-router-dom";
 import Alert from './Alert';
-import type { User } from './types/user'
+import type { PrivateUser } from './types/user'
 import type { Alert as AlertType } from './types/alert';
 import './Navbar.css';
 
@@ -12,8 +12,8 @@ type NavbarProps = {
   wsRef: React.MutableRefObject<WebSocket | null>;
   manualCloseRef: React.MutableRefObject<boolean>;
   page?: 'home' | 'about' | 'login' | 'signup' | 'profile';
-  user: User | null;
-  changeUser: (user: User | null) => void;
+  user: PrivateUser | null;
+  changeUser: (user: PrivateUser | null) => void;
   alert: AlertType | null;
   showAlert: (alert: AlertType) => void;
 }
@@ -81,6 +81,7 @@ export default function Navbar({ dark, changeMode, wsRef, manualCloseRef, page =
                           padding: '4px',
                           width: '2rem',
                           height: '2rem',
+                          objectFit: 'cover',
                           borderRadius: '50%'
                         }}
                         onError={(e) => {

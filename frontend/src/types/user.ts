@@ -1,7 +1,10 @@
-export type User = {
+export type PublicUser = {
   _id: string;
   username: string;
   name: string;
-  email: string;
   photoURL: string | null;
+};
+
+export type PrivateUser = PublicUser & {
+  email: string;
 };

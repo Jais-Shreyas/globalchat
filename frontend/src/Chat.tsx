@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef, act } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Input from './Input';
-import type { User } from './types/user';
+import type { PrivateUser, PublicUser } from './types/user';
 import type { Alert } from './types/alert';
 import type { Contact } from './types/contact';
 import type { Message } from './types/Message';
@@ -11,19 +11,19 @@ import { apiFetch } from './helpers/fetchHelper';
 type ChatProps = {
   wsRef: React.RefObject<WebSocket | null>;
   dark: boolean;
-  user: User | null;
+  user: PrivateUser | null;
   showAlert: (alert: Alert) => void;
 }
 
 export default function Chat({ wsRef, dark, user, showAlert }: ChatProps) {
   // if Chat.tsx loads, it means user is logged in, and is not null
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const focusRef = useRef<HTMLTextAreaElement | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [activeContact, setActiveContact] = useState<Contact | null>(null);
   const [messages, setMessages] = useState<Message[]>([{ message: 'Loading messages...', username: 'System', name: 'System', createdAt: new Date(), _id: '0' }]);
-  const [isMobile, setIsMobile] = useState(window.matchMedia('(max-width: 767px)').matches);
+  const [displayingUser, setDisplayingUser] = useState<PublicUser | null>(null);
 
+  const [isMobile, setIsMobile] = useState(window.matchMedia('(max-width: 767px)').matches);
   useEffect(() => {
     const media = window.matchMedia('(max-width: 767px)');
 
@@ -50,6 +50,7 @@ export default function Chat({ wsRef, dark, user, showAlert }: ChatProps) {
       }
     }
     fetchMessages();
+    setInputMessage({ msg: '', _id: null });
   }, [activeContact]);
 
   useEffect(() => {
@@ -58,6 +59,20 @@ export default function Chat({ wsRef, dark, user, showAlert }: ChatProps) {
       const data = JSON.parse(event.data);
       if (data.type === 'NEW_MESSAGE') {
         const { message, username, name, createdAt, messageId, conversationId } = data;
+        setContacts((prevContacts) => {
+          const updatedContacts = prevContacts.map(contact => {
+            if (contact.conversationId === conversationId) {
+              return { ...contact, lastMessage: { message, name, username, sentAt: createdAt } };
+            }
+            return contact;
+          });
+          updatedContacts.sort((a, b) => {
+            const dateA = a.lastMessage ? new Date(a.lastMessage.sentAt).getTime() : 0;
+            const dateB = b.lastMessage ? new Date(b.lastMessage.sentAt).getTime() : 0;
+            return dateB - dateA;
+          });
+          return updatedContacts;
+        });
         if (activeContact && conversationId === activeContact.conversationId) {
           setMessages((prevMessages) => [...prevMessages, { message, username, name, createdAt, _id: messageId }]);
         }
@@ -108,15 +123,12 @@ export default function Chat({ wsRef, dark, user, showAlert }: ChatProps) {
       showAlert({ type: 'danger', message: 'Could not delete message' });
     }
   };
-  useEffect(() => {
-    setInputMessage({ msg: '', _id: null });
-  }, [activeContact]);
 
   return (
     <div className='d-flex'>
       {isMobile ?
         (mobileView === 'contacts' ?
-          <ContactPanel dark={dark} contacts={contacts} isMobile={isMobile} setMobileView={setMobileView} setContacts={setContacts} activeContact={activeContact} setActiveContact={setActiveContact} focusRef={focusRef} showAlert={showAlert} />
+          <ContactPanel dark={dark} user={user} contacts={contacts} isMobile={isMobile} setMobileView={setMobileView} setContacts={setContacts} activeContact={activeContact} setActiveContact={setActiveContact} focusRef={focusRef} showAlert={showAlert} />
           :
           <>
             <ChatWindow user={user} dark={dark} focusRef={focusRef} isMobile={isMobile} setMobileView={setMobileView} activeContact={activeContact} messages={messages} setInputMessage={setInputMessage} deleteChat={deleteChat} />
@@ -124,7 +136,7 @@ export default function Chat({ wsRef, dark, user, showAlert }: ChatProps) {
           </>
         )
         : <>
-          <ContactPanel dark={dark} contacts={contacts} isMobile={isMobile} setMobileView={setMobileView} setContacts={setContacts} activeContact={activeContact} setActiveContact={setActiveContact} focusRef={focusRef} showAlert={showAlert} />
+          <ContactPanel dark={dark} user={user} contacts={contacts} isMobile={isMobile} setMobileView={setMobileView} setContacts={setContacts} activeContact={activeContact} setActiveContact={setActiveContact} focusRef={focusRef} showAlert={showAlert} />
           <ChatWindow user={user} dark={dark} focusRef={focusRef} isMobile={isMobile} setMobileView={setMobileView} activeContact={activeContact} messages={messages} setInputMessage={setInputMessage} deleteChat={deleteChat} />
           <Input dark={dark} focusRef={focusRef} activeContact={activeContact} inputMessage={inputMessage} setInputMessage={setInputMessage} insertMessage={insertMessage} />
         </>

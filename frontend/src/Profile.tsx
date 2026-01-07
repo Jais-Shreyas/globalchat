@@ -1,29 +1,24 @@
 import React, { useEffect, useState } from 'react'
 import { redirect, useNavigate, useParams } from 'react-router-dom';
-import { User } from './types/user';
+import { PrivateUser } from './types/user';
 import { Alert } from './types/alert';
 import { createNewContact } from './helpers/chatHelper';
 import { apiFetch } from './helpers/fetchHelper';
+import { Person } from '@mui/icons-material';
 
 type ProfileProps = {
-  user: User | null;
-  changeUser: (user: User | null) => void;
+  user: PrivateUser | null;
+  changeUser: (user: PrivateUser | null) => void;
   showAlert: (alert: Alert) => void;
 }
 
 export default function Profile({ user, changeUser, showAlert }: ProfileProps) {
   const { username } = useParams();
   const navigate = useNavigate();
-  type userDataProps = {
-    name: string;
-    username: string;
-    email: string;
-    _id: string;
-    photoURL: string | null;
-  }
-  const [userData, setUserData] = useState<userDataProps>({ name: "---", username: "---", email: "", _id: "", photoURL: null });
-  const [originalData, setOriginalData] = useState<userDataProps>({ name: "---", username: "---", email: "", _id: "", photoURL: null });
+  const [userData, setUserData] = useState<PrivateUser>({ name: "---", username: "---", email: "", _id: "", photoURL: null });
+  const [originalData, setOriginalData] = useState<PrivateUser>({ name: "---", username: "---", email: "", _id: "", photoURL: null });
   const [isEditing, toggleEditing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   useEffect(() => {
     const fetchProfile = async (user: string) => {
       try {
@@ -47,13 +42,34 @@ export default function Profile({ user, changeUser, showAlert }: ProfileProps) {
     setUserData(originalData);
     toggleEditing(false);
   }
+
+  type ValidationResult = {
+    valid: boolean;
+    message?: string;
+  };
+
+  const validateProfileUpdate = (): ValidationResult => {
+    const name = userData.name.trim();
+    const username = userData.username.trim();
+    if (!name) return { valid: false, message: 'Name is required' };
+    if (!username) return { valid: false, message: 'Username is required' };
+    if (username.includes(' ')) {
+      return { valid: false, message: 'Username cannot contain spaces' };
+    }
+    return { valid: true };
+  }
+
   const handleSubmit = async () => {
     try {
       if (!userData.name || !userData.username || !userData.email) {
-        return showAlert({ type: 'danger', message: 'Fields can\'t be empty.' })  
+        return showAlert({ type: 'danger', message: 'Fields can\'t be empty.' })
       }
-
-      console.log("Submitting updated data: ", userData);
+      const validation = validateProfileUpdate();
+      if (!validation.valid) {
+        showAlert({ type: 'danger', message: validation.message || 'Invalid profile details' });
+        return;
+      }
+      setIsSubmitting(true);
       const data = await apiFetch(`/profile`, {
         method: 'PATCH',
         headers: {
@@ -61,8 +77,6 @@ export default function Profile({ user, changeUser, showAlert }: ProfileProps) {
         },
         body: JSON.stringify(userData)
       });
-
-      console.log("Profile Update Response: ", data);
 
       toggleEditing(false);
       setUserData(data.user);
@@ -72,6 +86,8 @@ export default function Profile({ user, changeUser, showAlert }: ProfileProps) {
     } catch (e: any) {
       console.error("Profile Update Error: ", e)
       showAlert({ type: 'danger', message: e.message || 'Could not update profile' });
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -84,50 +100,28 @@ export default function Profile({ user, changeUser, showAlert }: ProfileProps) {
               <div className="d-flex">
                 <div className="flex-shrink-0">
                   <img src={userData.photoURL || "/defaultDP.jpg"}
-                    alt="Generic placeholder image" className="img-fluid" style={{
+                    alt="Profile URL" className="img-fluid" style={{
                       width: '180px',
                       height: '180px',
                       objectFit: 'cover',
                       borderRadius: '10px'
-                    }} />
+                    }}
+                    onError={(e) => {
+                      e.currentTarget.src = "/defaultDP.jpg";
+                    }}
+                  />
                 </div>
-                <div className="flex-grow-1 ms-3">
+                <div className="flex-grow-1 ms-3 text-truncate">
                   {isEditing ? (
                     <div className="mt-3">
-                      <div className="mb-3">
-                        <label className="form-label">Full Name</label>
-                        <input
-                          className="form-control"
-                          type="text"
-                          name="name"
-                          value={userData.name}
-                          onChange={handleCredUpdate}
-                        />
+                      <div className="input-group mb-3">
+                        <span className="input-group-text" id="basic-addon1"><Person /></span>
+                        <input autoFocus value={userData.name} onChange={handleCredUpdate} type="text" name="name" className="form-control" placeholder="Username" aria-label="identifier" aria-describedby="identifier" />
                       </div>
-
-                      <div className="mb-3">
-                        <label className="form-label">Username</label>
-                        <input
-                          className="form-control"
-                          type="text"
-                          name="username"
-                          value={userData.username}
-                          onChange={handleCredUpdate}
-                        />
+                      <div className="input-group mb-3">
+                        <span className="input-group-text" id="basic-addon1"><Person /></span>
+                        <input autoFocus value={userData.username} onChange={handleCredUpdate} type="text" name="username" className="form-control" placeholder="Username" aria-label="identifier" aria-describedby="identifier" />
                       </div>
-
-                      {userData.email && (
-                        <div className="mb-3">
-                          <label className="form-label">Email</label>
-                          <input
-                            className="form-control"
-                            type="email"
-                            name="email"
-                            value={userData.email}
-                            onChange={handleCredUpdate}
-                          />
-                        </div>
-                      )}
                     </div>
                   ) : (
                     <div className="mt-1">
@@ -140,9 +134,6 @@ export default function Profile({ user, changeUser, showAlert }: ProfileProps) {
                     </div>
                   )}
 
-                  {user?.email === userData.email && !isEditing &&
-                    <p className="mb-2">Want to update your details? Click on Edit Profile</p>
-                  }
                   {isEditing &&
                     <div className="mb-2">
                       <div className="d-flex pt-1">
@@ -150,7 +141,7 @@ export default function Profile({ user, changeUser, showAlert }: ProfileProps) {
                           className="btn btn-danger me-1 flex-grow-1"
                           onClick={handleCancel}
                         >Cancel</button>
-                        <button className="btn btn-success flex-grow-1" onClick={handleSubmit}>Save</button>
+                        <button className="btn btn-success flex-grow-1" disabled={isSubmitting} onClick={handleSubmit}>Save</button>
                       </div>
                     </div>
                   }

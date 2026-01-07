@@ -8,7 +8,7 @@ import Signup from './Signup';
 import Chat from './Chat';
 import Profile from './Profile';
 import type { Alert } from './types/alert'
-import type { User } from './types/user'
+import type { PrivateUser } from './types/user'
 import LandingPage from './LandingPage';
 import { apiFetch } from './helpers/fetchHelper';
 
@@ -26,12 +26,15 @@ function App() {
 
   const [dark, setDark] = useState<boolean>(true);
 
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<PrivateUser | null>(null);
 
-  const initialFetchUser = async (): Promise<User | null> => {
+  const initialFetchUser = async (): Promise<PrivateUser | null> => {
     try {
+      if (!localStorage.getItem('globalchat-authToken')) {
+        return null;
+      }
       const data = await apiFetch('/me');
-      return data.user as User;
+      return data.user as PrivateUser;
     } catch (err: any) {
       if (err.message === 'Unauthorized') {
         return null; // normal logged-out state
@@ -118,7 +121,7 @@ function App() {
     };
   }, [user?._id]);
 
-  const changeUser = (user: User | null) => {
+  const changeUser = (user: PrivateUser | null) => {
     if (!user) {
       setUser(null);
     } else {

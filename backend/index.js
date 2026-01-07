@@ -12,9 +12,6 @@ const app = express();
 import http from 'http';
 const server = http.createServer(app);
 
-import cookieParser from 'cookie-parser';
-app.use(cookieParser());
-
 import dotenv from 'dotenv';
 dotenv.config();
 

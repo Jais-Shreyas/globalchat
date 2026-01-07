@@ -2,7 +2,7 @@ import Markdown from "react-markdown";
 import { Link, useNavigate } from "react-router-dom";
 import { Message } from "./types/Message";
 import { Contact } from "./types/contact";
-import { User } from "./types/user";
+import { PrivateUser } from "./types/user";
 import { useEffect, useRef, useState } from "react";
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -10,7 +10,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SwipeUpIcon from '@mui/icons-material/SwipeUp';
 
 type ChatWindowProps = {
-  user: User | null;
+  user: PrivateUser | null;
   dark: boolean;
   focusRef: React.RefObject<HTMLTextAreaElement> | null;
   isMobile: boolean;

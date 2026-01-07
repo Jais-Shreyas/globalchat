@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { Contact } from "./types/contact";
-import { Message } from "./types/Message";
 import { createNewContact } from "./helpers/chatHelper";
 import { Alert } from "./types/alert";
 import { apiFetch } from "./helpers/fetchHelper";
+import { PrivateUser } from "./types/user";
+import { Link } from "react-router-dom";
 
 type ContactPanelProps = {
   dark: boolean;
+  user: PrivateUser | null;
   contacts: Contact[];
   isMobile: boolean;
   setMobileView: (view: 'contacts' | 'chat') => void;
@@ -18,7 +20,7 @@ type ContactPanelProps = {
   showAlert: (alert: Alert) => void;
 }
 
-export default function ContactPanel({ dark, contacts, isMobile, setMobileView, setContacts, activeContact, setActiveContact, focusRef, showAlert }: ContactPanelProps) {
+export default function ContactPanel({ dark, user, contacts, isMobile, setMobileView, setContacts, activeContact, setActiveContact, focusRef, showAlert }: ContactPanelProps) {
   const [searchContact, setSearchContact] = useState<string>('');
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
 
@@ -31,13 +33,16 @@ export default function ContactPanel({ dark, contacts, isMobile, setMobileView, 
     focusRef?.current?.focus();
   }
 
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
-
   useEffect(() => {
     const fetchContacts = async () => {
       try {
         const data = await apiFetch('/contacts');
-        setContacts(data);
+        const sortedData = data.sort((a: Contact, b: Contact) => {
+          const dateA = a.lastMessage ? new Date(a.lastMessage.sentAt).getTime() : 0;
+          const dateB = b.lastMessage ? new Date(b.lastMessage.sentAt).getTime() : 0;
+          return dateB - dateA;
+        });
+        setContacts(sortedData);
         if (!activeContact) {
           const globalChat = data.find((contact: Contact) => contact.type === 'global');
           if (globalChat) {
@@ -82,7 +87,7 @@ export default function ContactPanel({ dark, contacts, isMobile, setMobileView, 
         border: `5px solid ${dark ? 'white' : 'black'}`,
         borderRadius: '1rem',
         height: `calc(100vh - ${isMobile ? '4rem' : '7rem'})`,
-        maxWidth: (isMobile ? '100%' : '480px'),
+        maxWidth: (isMobile ? '100%' : '600px'),
         padding: '1rem 1rem'
       }}
 
@@ -102,25 +107,46 @@ export default function ContactPanel({ dark, contacts, isMobile, setMobileView, 
           overflowY: 'auto',
           overflowX: 'auto',
           scrollbarWidth: 'none',
-          maxHeight: 'calc(100vh - 16rem)',
+          maxHeight: 'calc(100vh - 14rem)',
           flexGrow: 1
         }}
       >
         {(searchContact ? filteredContacts : contacts).map((contact) => (
           <div
             key={contact.conversationId}
-            className='border-bottom'
-            onClick={() => selectContact(contact)}
-            style={{ color: dark ? 'white' : 'black', cursor: 'pointer', backgroundColor: activeContact?.conversationId === contact.conversationId ? (dark ? '#343a40' : '#e9ecef') : 'transparent' }}>
-            <div className={`d-flex align-items-center p-2 rounded`} >
+            className='d-flex border-bottom w-100'
+            style={{ color: dark ? 'white' : 'black', backgroundColor: activeContact?.conversationId === contact.conversationId ? (dark ? '#343a40' : '#e9ecef') : 'transparent' }}>
+            <Link to={`/profile/${contact.username || 'global'}`}
+              className="d-flex">
               <img
+                className="mx-2 my-3"
                 src={contact.photoURL || '/defaultDP.jpg'}
                 alt={contact.name}
                 style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover', marginRight: '1rem' }}
               />
-              <div>
-                <h5 className="mb-0">{contact.name}</h5>
-                <small>@{contact.type === 'global' ? 'global' : contact.username}</small>
+            </Link>
+            <div className={`d-flex align-items-center p-2 rounded w-100`}
+              onClick={() => selectContact(contact)}
+              style={{ cursor: 'pointer' }}
+            >
+              <div className="text-trucate w-100">
+                <h5 className="mb-0">{contact.name} (<small>@{contact.type === 'global' ? 'global' : contact.username}</small>)</h5>
+                {contact.lastMessage && (
+                  <div className="d-flex justify-content-between align-items-center">
+                    <p className="mb-0 text-truncate text-light me-2" style={{ maxWidth: '75%' }}>
+                      {contact.lastMessage.username === user?.username ? 'You' : contact.lastMessage.name}
+                      {': '}
+                      {contact.lastMessage.message}
+                    </p>
+
+                    <small className="text-muted flex-shrink-0">
+                      {new Date(contact.lastMessage.sentAt).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </small>
+                  </div>
+                )}
               </div>
             </div>
           </div>
