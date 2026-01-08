@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react'
-import { redirect, useNavigate, useParams } from 'react-router-dom';
+import { Link, redirect, useNavigate, useParams } from 'react-router-dom';
 import { PrivateUser } from './types/user';
 import { Alert } from './types/alert';
 import { createNewContact } from './helpers/chatHelper';
 import { apiFetch } from './helpers/fetchHelper';
-import { Person } from '@mui/icons-material';
+import { ArrowBack, Image, Person } from '@mui/icons-material';
 
 type ProfileProps = {
   user: PrivateUser | null;
@@ -13,26 +13,29 @@ type ProfileProps = {
 }
 
 export default function Profile({ user, changeUser, showAlert }: ProfileProps) {
-  const { username } = useParams();
+  const { username } = useParams<{ username: string }>();
+  if (!username) {
+    redirect('/');
+  }
   const navigate = useNavigate();
   const [userData, setUserData] = useState<PrivateUser>({ name: "---", username: "---", email: "", _id: "", photoURL: null });
   const [originalData, setOriginalData] = useState<PrivateUser>({ name: "---", username: "---", email: "", _id: "", photoURL: null });
   const [isEditing, toggleEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   useEffect(() => {
-    const fetchProfile = async (user: string) => {
+    const fetchProfile = async () => {
       try {
-        const data = await apiFetch(`/profile/${user}`);
+        const data = await apiFetch(`/profile/${username}`);
         setUserData(data.user);
         setOriginalData(data.user);
       } catch (err: any) {
-        console.error("Profile Fetch Error: ", err);
         showAlert({ type: 'danger', message: err.message || 'Could not fetch profile' });
         navigate('/');
       }
     };
 
-    fetchProfile(username!);
+    fetchProfile();
   }, [username]);
 
   const handleCredUpdate = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -97,12 +100,15 @@ export default function Profile({ user, changeUser, showAlert }: ProfileProps) {
         <div className="col col-md-9 col-lg-7 col-xl-6">
           <div className="card" style={{ borderRadius: '15px' }}>
             <div className="card-body p-4">
-              <div className="d-flex">
+              <Link className="text-dark" to='/' title='Back'><ArrowBack /></Link>
+              <div className="d-flex w-100 justify-content-center tex-center mx-1 mb-4 mt-2">
                 <div className="flex-shrink-0">
-                  <img src={userData.photoURL || "/defaultDP.jpg"}
+                  <img
+                   src={originalData.photoURL || "/defaultDP.jpg"}
                     alt="Profile URL" className="img-fluid" style={{
-                      width: '180px',
-                      height: '180px',
+                      border: '1px solid grey',
+                      width: '8rem',
+                      height: '8rem',
                       objectFit: 'cover',
                       borderRadius: '10px'
                     }}
@@ -111,23 +117,26 @@ export default function Profile({ user, changeUser, showAlert }: ProfileProps) {
                     }}
                   />
                 </div>
-                <div className="flex-grow-1 ms-3 text-truncate">
+                <div className="ms-3 text-truncate">
                   {isEditing ? (
-                    <div className="mt-3">
-                      <div className="input-group mb-3">
+                    <div>
+                      <div className="input-group mb-1">
                         <span className="input-group-text" id="basic-addon1"><Person /></span>
-                        <input autoFocus value={userData.name} onChange={handleCredUpdate} type="text" name="name" className="form-control" placeholder="Username" aria-label="identifier" aria-describedby="identifier" />
+                        <input autoFocus value={userData.name} onChange={handleCredUpdate} type="text" name="name" className="form-control" placeholder="Name" aria-label="name" aria-describedby="name" />
                       </div>
-                      <div className="input-group mb-3">
+                      <div className="input-group mb-1">
                         <span className="input-group-text" id="basic-addon1"><Person /></span>
-                        <input autoFocus value={userData.username} onChange={handleCredUpdate} type="text" name="username" className="form-control" placeholder="Username" aria-label="identifier" aria-describedby="identifier" />
+                        <input autoFocus value={userData.username} onChange={handleCredUpdate} type="text" name="username" className="form-control" placeholder="Username" aria-label="username" aria-describedby="username" />
+                      </div>
+                      <div className="input-group mb-1">
+                        <span className="input-group-text" id="basic-addon1"><Image /></span>
+                        <input autoFocus value={userData.photoURL ?? ''} onChange={handleCredUpdate} type="text" name="photoURL" className="form-control" placeholder="Link to the DP image" aria-label="photoURL" aria-describedby="photoURL" />
                       </div>
                     </div>
                   ) : (
                     <div className="mt-1">
                       <h5 className="mb-1">{userData.name}</h5>
                       <p className="mb-2 text-muted">@{userData.username}</p>
-
                       {userData.email && (
                         <h6 className="text-muted">{userData.email}</h6>
                       )}
@@ -155,12 +164,13 @@ export default function Profile({ user, changeUser, showAlert }: ProfileProps) {
                     :
                     !isEditing &&
                     <button type='button'
-                      className="btn btn-primary flex-grow-1"
+                      className="btn btn-primary flex-grow-1 mx-1"
                       onClick={async () => {
                         const alert = await createNewContact(userData.username);
                         if (alert.type === 'success') {
-                          redirect('/');
+                          // redirect('/');
                         }
+                        showAlert(alert);
                       }}
                     >Add to Contacts</button>
                   }

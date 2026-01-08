@@ -17,20 +17,19 @@ router.get('/contacts', authenticate, async (req, res) => {
         populate: { path: 'sender', select: 'username name' }
       })
       .select('type name participants');
-    console.log("Fetched Conversations: ", conversations[0]);
     const userContacts = conversations.map(conv => {
       let contactInfo;
       if (conv.type === 'global') {
         contactInfo = {
           name: 'Global Chat',
           username: null,
-          photoURL: null
+          photoURL: conv.photoURL
         };
       } else if (conv.type === 'group') {
         contactInfo = {
           name: conv.name,
           username: null,
-          photoURL: null
+          photoURL: conv.photoURL
         };
       } else {
         const otherParticipant = conv.participants.find(participant => participant._id.toString() !== req._id);
@@ -40,7 +39,17 @@ router.get('/contacts', authenticate, async (req, res) => {
           photoURL: otherParticipant.photoURL,
         };
       }
-      return { ...contactInfo, type: conv.type, conversationId: conv._id, lastMessage: conv.lastMessage ? { message: conv.lastMessage.message, name: conv.lastMessage.sender.name, username: conv.lastMessage.sender.username, sentAt: conv.lastMessage.updatedAt || conv.lastMessage.createdAt } : null };
+      return {
+        ...contactInfo,
+        type: conv.type,
+        conversationId: conv._id,
+        lastMessage: conv.lastMessage ? {
+          message: conv.lastMessage.message,
+          name: conv.lastMessage.sender.name,
+          username: conv.lastMessage.sender.username,
+          sentAt: conv.lastMessage.updatedAt || conv.lastMessage.createdAt
+        } : null
+      };
     });
     res.status(200).json(userContacts);
   } catch (err) {
@@ -99,12 +108,53 @@ router.post('/contacts/new', authenticate, async (req, res) => {
         });
       }
       return res.status(201).json({ message: convExists ? 'Contact already exists' : 'New contact created' });
+    } else if (type === 'group') {
+      const { usernames, name } = req.body;
+      const userIds = [req._id];
+      for (const username of usernames) {
+        const user = await User.findOne({ username });
+        if (user && user._id.toString() !== req._id) {
+          userIds.push(user._id);
+        }
+      }
+      const groupConversation = new Conversation({
+        type: 'group',
+        participants: userIds,
+        name: name || 'New Group'
+      });
+      await groupConversation.save();
+
+      emitToUsers([req._id], {
+        type: 'NEW_CONTACT',
+        contact: {
+          name: groupConversation.name,
+          username: null,
+          photoURL: null,
+          conversationId: groupConversation._id,
+          type: 'group'
+        },
+        creatorId: req._id
+      });
+
+      emitToUsers(userIds.filter(id => id.toString() !== req._id), {
+        type: 'NEW_CONTACT',
+        contact: {
+          name: groupConversation.name,
+          username: null,
+          photoURL: null,
+          conversationId: groupConversation._id,
+          type: 'group'
+        },
+        creatorId: req._id
+      });
+      return res.status(201).json({ message: 'New group chat created' });
+
     } else {
       return res.status(400).json({ message: 'Invalid conversation type' });
     }
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Failed to create contact' });
+    res.status(500).json({ message: 'Failed to create new contact / group' });
   }
 });
 
@@ -119,6 +169,7 @@ router.get('/chats/:conversationId', authenticate, async (req, res) => {
       _id: chat._id,
       message: chat.message,
       username: chat.sender.username,
+      userId: chat.sender._id,
       name: chat.sender.name,
       createdAt: chat.createdAt
     }));

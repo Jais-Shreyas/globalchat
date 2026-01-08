@@ -23,21 +23,35 @@ export default function Navbar({ dark, changeMode, wsRef, manualCloseRef, page =
     manualCloseRef.current = true;
     wsRef.current?.close();
     wsRef.current = null;
-    
+
     localStorage.removeItem('globalchat-authToken');
     changeUser(null);
 
     showAlert({ type: 'success', message: 'Logged out successfully!' });
   }
+
+  const closeNavbar = () => {
+    const el = document.getElementById('navbarSupportedContent');
+    if (!el) return;
+
+    if (el.classList.contains('show')) {
+      const bsCollapse = new (window as any).bootstrap.Collapse(el, {
+        toggle: true
+      });
+      bsCollapse.hide();
+    }
+  };
+
+
   return (
     <>
       <nav className={`navbar sticky-top ${dark ? 'navbar-dark bg-dark' : 'navbar-light bg-light'} navbar-expand-md`}
-      style={{
-        height: '4rem'
-      }}
+        style={{
+          height: '4rem'
+        }}
       >
         <div className="container-fluid">
-          <Link className="navbar-brand" to="/">
+          <Link onClick={closeNavbar} className="navbar-brand" to="/">
             <h4 className="d-flex align-items-center">
               <img style={{ width: '2rem', borderRadius: '20%' }} src='/android-chrome-512x512.png' alt="Logo" />
               &nbsp;Global Chat
@@ -49,10 +63,10 @@ export default function Navbar({ dark, changeMode, wsRef, manualCloseRef, page =
           <div className="collapse navbar-collapse" id="navbarSupportedContent">
             <ul className="navbar-nav mb-2 mb-md-0 w-100 bg-dark mobile-outer rounded-3 p-2">
               <li className="nav-item mobile-border">
-                <Link className={`nav-link ${page === 'home' ? 'active' : ''}`} to="/">Home</Link>
+                <Link onClick={closeNavbar} className={`nav-link ${page === 'home' ? 'active' : ''}`} to="/">Home</Link>
               </li>
               <li className="nav-item mobile-border">
-                <Link className={`nav-link ${page === 'about' ? 'active' : ''}`} to="/about">About</Link>
+                <Link onClick={closeNavbar} className={`nav-link ${page === 'about' ? 'active' : ''}`} to="/about">About</Link>
               </li>
               <li className="nav-item ms-md-auto">
                 {/* <div onClick={changeMode} className="nav-link" style={{ cursor: 'pointer' }}>
@@ -62,16 +76,16 @@ export default function Navbar({ dark, changeMode, wsRef, manualCloseRef, page =
               {!user ? (
                 <>
                   <li className="nav-item mobile-border">
-                    <Link className={`nav-link ${page === 'login' ? 'active' : ''}`} to="/login">Login</Link>
+                    <Link onClick={closeNavbar} className={`nav-link ${page === 'login' ? 'active' : ''}`} to="/login">Login</Link>
                   </li>
                   <li className="nav-item mobile-border">
-                    <Link className={`nav-link ${page === 'signup' ? 'active' : ''}`} to="/signup">Signup</Link>
+                    <Link onClick={closeNavbar} className={`nav-link ${page === 'signup' ? 'active' : ''}`} to="/signup">Signup</Link>
                   </li>
                 </>
               ) : (
                 <>
                   <li className="nav-item mobile-border">
-                    <Link className={`nav-link ${page === 'home' ? 'active' : ''}`} to={`/profile/${user.username}`}>
+                    <Link onClick={closeNavbar} className={`nav-link ${page === 'home' ? 'active' : ''}`} to={`/profile/${user.username}`}>
                       {user.name}&nbsp;
                       <img
                         src={user.photoURL || "/defaultDP.jpg"}

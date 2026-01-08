@@ -51,7 +51,6 @@ export default function Login({ changeUser, showAlert }: LoginProps) {
         headers: {
           'Content-type': 'application/json'
         },
-        credentials: 'include',
         body: JSON.stringify(creds)
       });
       const { token, user } = json;

@@ -1,6 +1,7 @@
 import express from 'express';
 import User from '../models/user.js'
 import { authenticate } from '../middleware/authenticate.js'
+import Conversation from '../models/conversation.js';
 
 const router = express.Router();
 
@@ -12,7 +13,7 @@ router.get('/me', authenticate, async (req, res) => {
   if (!user) {
     return res.status(401).json({ message: 'User not found' });
   }
-  
+
   res.status(200).json({ user });
 });
 
@@ -35,6 +36,32 @@ router.get('/profile/:username', authenticate, async (req, res) => {
     }
 
     res.status(200).json({ user });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: 'Server error'
+    });
+  }
+});
+
+router.get('/conversation/:conversationId', authenticate, async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const conversation = await Conversation.findById(conversationId)
+      .select('name type photoURL participants')
+      .populate('participants', 'username name photoURL');
+    if (!conversation) {
+      return res.status(404).json({
+        message: 'Conversation not found'
+      });
+    }
+    if (conversation.type !== 'global' && conversation.type !== 'group') {
+      return res.status(400).json({
+        message: 'Invalid conversation type'
+      });
+    }
+    res.status(200).json({ group: conversation });
 
   } catch (err) {
     console.error(err);

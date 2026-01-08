@@ -33,9 +33,13 @@ export default function Input({ dark, focusRef, activeContact, inputMessage, set
     <>
       <form
         onSubmit={(e) => { e.preventDefault(); handleSend() }}
-        className={`input-group mb-1 fixed-bottom`}
-        style={{ maxWidth: '100%',  backgroundColor: dark ? '#212529' : 'white', height: '2.5rem' }}
-        >
+        className={`input-group`}
+        style={{
+          backgroundColor: dark ? '#212529' : 'white',
+          // height: '2.5rem',
+          // marginLeft: '1rem',
+        }}
+      >
         <textarea
           ref={focusRef}
           rows={1}

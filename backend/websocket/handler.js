@@ -3,6 +3,7 @@ import Conversation from '../models/conversation.js';
 import { insertMessage, updateMessage, deleteMessage } from '../services/chat.service.js';
 import { Clients } from './clients.js';
 import { emitToUsers } from './emitter.js';
+import Message from '../models/message.js';
 
 export const handleWSConnection = (ws, req) => {
   try {
@@ -59,7 +60,6 @@ export const handleWSConnection = (ws, req) => {
         await conversation.save();
 
       } catch (err) {
-        console.error('Error saving message:', err);
         ws.send(JSON.stringify({ type: "ERROR", message: err.message }));
       }
     } else if (data.type === 'UPDATE_MESSAGE') {
@@ -84,7 +84,6 @@ export const handleWSConnection = (ws, req) => {
           conversationId
         });
       } catch (err) {
-        console.error('Error updating message:', err);
         ws.send(JSON.stringify({ type: "ERROR", message: err.message }));
       }
     } else if (data.type === 'DELETE_MESSAGE') {
@@ -105,15 +104,14 @@ export const handleWSConnection = (ws, req) => {
           messageId,
           conversationId
         });
-        if (conversation.lastMessage && conversation.lastMessage.toString() === messageId) {
-          const lastMsg = await Message.find({ conversation: conversationId })
+        if (!conversation.lastMessage) {
+          const lastMessage = await Message.find({ conversation: conversationId })
             .sort({ createdAt: -1 })
             .limit(1);
-          conversation.lastMessage = lastMsg.length > 0 ? lastMsg[0]._id : null;
+          conversation.lastMessage = lastMessage.length ? lastMessage[0]._id : null;
           await conversation.save();
         }
       } catch (err) {
-        console.error('Error deleting message:', err);
         ws.send(JSON.stringify({
           type: "ERROR",
           message: err.message

@@ -20,8 +20,8 @@ export default function Chat({ wsRef, dark, user, showAlert }: ChatProps) {
   const focusRef = useRef<HTMLTextAreaElement | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [activeContact, setActiveContact] = useState<Contact | null>(null);
-  const [messages, setMessages] = useState<Message[]>([{ message: 'Loading messages...', username: 'System', name: 'System', createdAt: new Date(), _id: '0' }]);
-  const [displayingUser, setDisplayingUser] = useState<PublicUser | null>(null);
+  const [messages, setMessages] = useState<Message[]>([{ message: 'Loading messages...', username: 'System', userId: '', name: 'System', createdAt: new Date(), _id: '0' }]);
+  // const [displayingUser, setDisplayingUser] = useState<PublicUser | null>(null);
 
   const [isMobile, setIsMobile] = useState(window.matchMedia('(max-width: 767px)').matches);
   useEffect(() => {
@@ -36,8 +36,8 @@ export default function Chat({ wsRef, dark, user, showAlert }: ChatProps) {
   const [mobileView, setMobileView] = useState<'contacts' | 'chat'>('contacts');
 
   useEffect(() => {
+    if (activeContact === null) return;
     const fetchMessages = async () => {
-      if (activeContact === null) return;
       try {
         let data = await apiFetch(`/chats/${activeContact.conversationId}`);
         if (!Array.isArray(data) || data.length === 0) {
@@ -51,6 +51,7 @@ export default function Chat({ wsRef, dark, user, showAlert }: ChatProps) {
     }
     fetchMessages();
     setInputMessage({ msg: '', _id: null });
+    return () => { setMessages([]); };
   }, [activeContact]);
 
   useEffect(() => {
@@ -74,7 +75,7 @@ export default function Chat({ wsRef, dark, user, showAlert }: ChatProps) {
           return updatedContacts;
         });
         if (activeContact && conversationId === activeContact.conversationId) {
-          setMessages((prevMessages) => [...prevMessages, { message, username, name, createdAt, _id: messageId }]);
+          setMessages((prevMessages) => [...prevMessages, { message, username, name, createdAt, _id: messageId, userId: data.userId }]);
         }
       } else if (data.type === 'UPDATE_MESSAGE') {
         const { message, messageId } = data;
@@ -125,20 +126,22 @@ export default function Chat({ wsRef, dark, user, showAlert }: ChatProps) {
   };
 
   return (
-    <div className='d-flex'>
+    <div className='d-flex flex-grow-1'>
       {isMobile ?
         (mobileView === 'contacts' ?
           <ContactPanel dark={dark} user={user} contacts={contacts} isMobile={isMobile} setMobileView={setMobileView} setContacts={setContacts} activeContact={activeContact} setActiveContact={setActiveContact} focusRef={focusRef} showAlert={showAlert} />
           :
-          <>
+          <div className=''>
             <ChatWindow user={user} dark={dark} focusRef={focusRef} isMobile={isMobile} setMobileView={setMobileView} activeContact={activeContact} messages={messages} setInputMessage={setInputMessage} deleteChat={deleteChat} />
             <Input dark={dark} focusRef={focusRef} activeContact={activeContact} inputMessage={inputMessage} setInputMessage={setInputMessage} insertMessage={insertMessage} />
-          </>
+          </div>
         )
         : <>
           <ContactPanel dark={dark} user={user} contacts={contacts} isMobile={isMobile} setMobileView={setMobileView} setContacts={setContacts} activeContact={activeContact} setActiveContact={setActiveContact} focusRef={focusRef} showAlert={showAlert} />
-          <ChatWindow user={user} dark={dark} focusRef={focusRef} isMobile={isMobile} setMobileView={setMobileView} activeContact={activeContact} messages={messages} setInputMessage={setInputMessage} deleteChat={deleteChat} />
-          <Input dark={dark} focusRef={focusRef} activeContact={activeContact} inputMessage={inputMessage} setInputMessage={setInputMessage} insertMessage={insertMessage} />
+          <div className=''>
+            <ChatWindow user={user} dark={dark} focusRef={focusRef} isMobile={isMobile} setMobileView={setMobileView} activeContact={activeContact} messages={messages} setInputMessage={setInputMessage} deleteChat={deleteChat} />
+            <Input dark={dark} focusRef={focusRef} activeContact={activeContact} inputMessage={inputMessage} setInputMessage={setInputMessage} insertMessage={insertMessage} />
+          </div>
         </>
       }
     </div>

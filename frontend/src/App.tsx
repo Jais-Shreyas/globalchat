@@ -11,6 +11,7 @@ import type { Alert } from './types/alert'
 import type { PrivateUser } from './types/user'
 import LandingPage from './LandingPage';
 import { apiFetch } from './helpers/fetchHelper';
+import ConversationDisplay from './ConversationDisplay';
 
 function App() {
   const reconnectDelay = useRef(1000); // 1 second initial delay
@@ -190,11 +191,11 @@ function App() {
         </>
     },
     {
-      path: '/chat/:username',
+      path: "/conversation/:conversationId",
       element:
         <>
-          <Navbar page='home' dark={dark} wsRef={wsRef} manualCloseRef={manualCloseRef} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
-          <Chat wsRef={wsRef} dark={dark} user={user} showAlert={showAlert} />
+          <Navbar page='profile' dark={dark} wsRef={wsRef} manualCloseRef={manualCloseRef} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
+          <ConversationDisplay user={user} changeUser={changeUser} showAlert={showAlert} />
         </>
     },
     {

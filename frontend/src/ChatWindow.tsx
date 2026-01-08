@@ -52,44 +52,60 @@ export default function ChatWindow({ user, dark, focusRef, isMobile, setMobileVi
     }
   }
 
+  useEffect(() => {
+    if (isMobile) return;
+    focusRef?.current?.focus();
+  }, []);
+
   return (
     <div
       id='chat-window'
-      className='flex-column w-100'
       style={{
-        border: `5px solid white`,
-        borderRadius: '1rem',
-        height: `calc(100vh - 7rem)`,
+        width: isMobile ? '100vw' : '70vw',
+        border: isMobile ? '' : `1px solid ${dark ? 'white' : 'black'}`,
+        borderTop: '1px solid white',
+        borderRadius: isMobile ? '' : '1rem',
+        height: `calc(100dvh - 6.5rem)`,
       }}
     >
       {activeContact && (
         <div
-          className="w-100 d-flex align-items-center"
+          className="w-100 d-flex align-items-center justify-content-between"
           style={{ borderBottom: '1px solid white' }}
         >
-          {isMobile &&
-            <button
-              type='button'
-              className="btn btn-link d-md-none"
-              onClick={() => setMobileView('contacts')}
-              style={{
-                color: dark ? 'white' : 'black',
-                backgroundColor: 'transparent'
+          <div className="d-flex">
+            {isMobile &&
+              <button
+                type='button'
+                className="btn btn-link d-md-none"
+                onClick={() => setMobileView('contacts')}
+                style={{
+                  color: dark ? 'white' : 'black',
+                  backgroundColor: 'transparent'
+                }}
+              > <ArrowBackIcon /></button>}
+            <div className="d-flex"
+              onClick={() => {
+                navigate(`${activeContact.type === 'private' ? `/profile/${activeContact.username}` : `/conversation/${activeContact.conversationId}`}`);
               }}
-            > <ArrowBackIcon /></button>}
-
-          <h3 className={`flex-grow-1 py-2 mb-0 text-white ${!isMobile ? 'text-center' : 'text-start'}`}
-            style={{
-              cursor: 'pointer'
-            }}
-            onClick={() => {
-              if (activeContact.type === 'global') return;
-              navigate(`/profile/${activeContact.username}`)
-            }}
-          >
-            {activeContact.name}
-            {activeContact.username ? ` (@${activeContact.username})` : ''}
-          </h3>
+              style={{ cursor: 'pointer' }}
+            >
+              <img
+                className="align-self-center mx-2 my-1"
+                src={activeContact.photoURL || (activeContact.type === 'private' ? "/defaultDP.jpg" : "/defaultGroupDP.png")}
+                alt={activeContact.name}
+                style={{ width: '2rem', height: '2rem', borderRadius: '50%', objectFit: 'cover', marginRight: '1rem' }}
+                onError={(e) => {
+                  e.currentTarget.src = "/defaultDP.jpg";
+                }}
+              />
+              <h3 className={`py-2 mb-0 text-white text-truncate`}
+                style={{ maxWidth: '40dvw' }}>
+                {activeContact.name}
+                {activeContact.username ? ` (@${activeContact.username})` : ''}
+              </h3>
+            </div>
+          </div>
           <div key='scrollchat' className="px-2" >
             <button onClick={toggleScroll} className={`btn btn-${scroll ? 'success' : 'danger'} btn-sm`}>
               <SwipeUpIcon />Auto Scroll
@@ -101,7 +117,7 @@ export default function ChatWindow({ user, dark, focusRef, isMobile, setMobileVi
       <div
         style={{
           borderRadius: '1rem',
-          height: 'calc(100vh - 11.4rem)',
+          height: 'calc(100dvh - 10rem)',
           overflowY: 'auto', overflowX: 'auto', scrollbarWidth: 'none',
           padding: '1rem 1rem 0 1rem',
         }}
@@ -137,11 +153,23 @@ export default function ChatWindow({ user, dark, focusRef, isMobile, setMobileVi
                 </div>
               }
               <div key={msg._id} style={style} className={`${msg.username === user!.username ? 'user' : 'notuser'} ${dark ? 'bg-light text-dark' : 'bg-dark text-light'} mt-0`}>
-                {activeContact?.type !== 'private' && <Link to={`/profile/${msg.username}`} style={{ textDecoration: 'none', color: 'grey', textAlign: msg.username !== user!.username ? 'left' : 'left', display: 'block' }}>
-                  {'- '}{msg.username === user!.username ? 'You' : msg.name}{'  '}
-                  {'\n'}
-                </Link>}
-                <div style={{ fontFamily: 'inherit' }}>
+                {activeContact?.type !== 'private' &&
+                  <Link to={`/profile/${msg.username}`} style={{ textDecoration: 'none', color: 'grey', textAlign: msg.username !== user!.username ? 'left' : 'left', display: 'block' }}>
+                    <div
+                      className="text-truncate"
+                      style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 'bold',
+                        marginBottom: '-0.3rem',
+                        maxWidth: '10rem'
+                      }}>
+                      {'- '}{msg.username === user!.username ? 'You' : msg.name}
+                    </div>
+                  </Link>}
+                <div style={{
+                  overflowWrap: 'anywhere',
+                  fontFamily: 'inherit'
+                }}>
                   <Markdown children={(msg.message)} />
                 </div>
                 <small style={{ fontSize: '0.5rem', lineHeight: '0', color: 'grey', display: 'block', textAlign: 'right', marginTop: '-0.7rem' }}>{showTime(msg.createdAt)}</small>

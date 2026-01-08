@@ -19,7 +19,7 @@ import methodOverride from 'method-override';
 app.use(methodOverride('_method'));
 
 import cors from 'cors';
-app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
+app.use(cors({ origin: process.env.FRONTEND_URL }));
 
 const startServer = async () => {
   try {
