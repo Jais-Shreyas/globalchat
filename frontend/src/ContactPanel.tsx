@@ -86,7 +86,7 @@ export default function ContactPanel({
   }, [searchContact, contacts]);
 
   const handleCreateContact = async () => {
-    const alert = await createNewContact(searchContact);
+    const alert = await createNewContact(addContactName);
     if (alert.type === 'success') {
       setSearchContact('');
       setIsAddingContact(false);
@@ -95,6 +95,10 @@ export default function ContactPanel({
   }
 
   const handleCreateGroup = async () => {
+    if (!groupName) {
+      showAlert({ type: 'danger', message: 'Group name is required' });
+      return;
+    }
     const alert = await createGroup(groupContactUsers, groupName);
     if (alert.type === 'success') {
       setGroupContactUsers([]);
