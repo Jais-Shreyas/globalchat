@@ -195,7 +195,7 @@ function App() {
       element:
         <>
           <Navbar page='profile' dark={dark} wsRef={wsRef} manualCloseRef={manualCloseRef} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
-          <ConversationDisplay user={user} changeUser={changeUser} showAlert={showAlert} />
+          <ConversationDisplay />
         </>
     },
     {
