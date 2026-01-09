@@ -1,5 +1,6 @@
 import SendIcon from '@mui/icons-material/Send';
 import EditIcon from '@mui/icons-material/Edit';
+import type { Alert } from './types/alert';
 
 type InputMsgProp = {
   msg: string;
@@ -8,6 +9,7 @@ type InputMsgProp = {
 
 type InputProps = {
   dark: boolean;
+  showAlert: (alert: Alert) => void;
   focusRef: React.RefObject<HTMLTextAreaElement> | null;
   activeContact: { conversationId: string } | null;
   inputMessage: InputMsgProp;
@@ -15,9 +17,12 @@ type InputProps = {
   insertMessage: () => void;
 }
 
-export default function Input({ dark, focusRef, activeContact, inputMessage, setInputMessage, insertMessage }: InputProps) {
+export default function Input({ dark, showAlert, focusRef, activeContact, inputMessage, setInputMessage, insertMessage }: InputProps) {
   const handleSend = () => {
-    if (!inputMessage.msg) return;
+    if (inputMessage.msg.length > 2048) {
+      showAlert({ type: 'danger', message: 'Message too long. Maximum length is 2048 characters.' });
+      return;
+    }
     insertMessage();
   }
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -52,7 +57,7 @@ export default function Input({ dark, focusRef, activeContact, inputMessage, set
           aria-describedby="button-addon2"
           disabled={!activeContact}
         ></textarea>
-        <button className={`btn btn-success  ${!inputMessage.msg || !activeContact ? 'disabled' : ''}`} type="button" id="button-addon2" onClick={handleSend} >{inputMessage._id ? <EditIcon /> : <SendIcon />}</button>
+        <button className={`btn btn-success  ${!inputMessage.msg.trim() || !activeContact ? 'disabled' : ''}`} type="button" id="button-addon2" onClick={handleSend} >{inputMessage._id ? <EditIcon /> : <SendIcon />}</button>
       </form>
     </>
   )

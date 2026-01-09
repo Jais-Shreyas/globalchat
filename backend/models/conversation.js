@@ -12,6 +12,10 @@ const conversationSchema = new Schema(
       ref: 'User',
       required: true
     }],
+    admins: [{
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    }],
     name: {
       type: String
     },

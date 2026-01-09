@@ -11,7 +11,7 @@ import type { Alert } from './types/alert'
 import type { PrivateUser } from './types/user'
 import LandingPage from './LandingPage';
 import { apiFetch } from './helpers/fetchHelper';
-import ConversationDisplay from './ConversationDisplay';
+import GroupProfile from './GroupProfile';
 
 function App() {
   const reconnectDelay = useRef(1000); // 1 second initial delay
@@ -195,7 +195,7 @@ function App() {
       element:
         <>
           <Navbar page='profile' dark={dark} wsRef={wsRef} manualCloseRef={manualCloseRef} changeMode={changeMode} user={user} changeUser={changeUser} alert={alert} showAlert={showAlert} />
-          <ConversationDisplay />
+          <GroupProfile user={user} showAlert={showAlert}/>
         </>
     },
     {

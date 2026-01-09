@@ -39,7 +39,7 @@ const ContinueWithGoogleButton = ({ changeUser, showAlert }: ContinueWithGoogleB
       localStorage.setItem('globalchat-authToken', token);
       changeUser(user);
       showAlert({ type: 'success', message: 'Logged in successfully' });
-      navigate('/');
+      navigate('/', { replace: true });
     } catch (error: any) {
       console.error('Google Login Error: ', error);
       showAlert({ type: 'danger', message: error.message || 'Google login failed' });

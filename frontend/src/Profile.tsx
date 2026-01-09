@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Link, redirect, useNavigate, useParams } from 'react-router-dom';
+import { redirect, useNavigate, useParams } from 'react-router-dom';
 import { PrivateUser } from './types/user';
 import { Alert } from './types/alert';
 import { createNewContact } from './helpers/chatHelper';
@@ -52,38 +52,53 @@ export default function Profile({ user, changeUser, showAlert }: ProfileProps) {
   };
 
   const validateProfileUpdate = (): ValidationResult => {
-    const name = userData.name.trim();
-    const username = userData.username.trim();
-    if (!name) return { valid: false, message: 'Name is required' };
-    if (!username) return { valid: false, message: 'Username is required' };
-    if (username.includes(' ')) {
-      return { valid: false, message: 'Username cannot contain spaces' };
+    if (!userData.name.trim()) {
+      return { valid: false, message: 'Name cannot be empty' };
+    }
+    if (!userData.username.trim()) {
+      return { valid: false, message: 'Username cannot be empty' };
+    }
+    const validUsernameRegex = /^[a-zA-Z0-9_.]+$/;
+    if (!validUsernameRegex.test(userData.username)) {
+      return { valid: false, message: 'Username can only contain letters, numbers, underscores and dots' };
     }
     return { valid: true };
   }
 
   const handleSubmit = async () => {
+    const validation = validateProfileUpdate();
+    if (!validation.valid) {
+      showAlert({ type: 'danger', message: validation.message || 'Invalid profile details' });
+      return;
+    }
+    const payload: Partial<PrivateUser> = {};
+    if (userData.name !== originalData.name) {
+      payload.name = userData.name;
+    }
+    if (userData.username !== originalData.username) {
+      payload.username = userData.username;
+    }
+    if (userData.photoURL !== originalData.photoURL) {
+      payload.photoURL = userData.photoURL;
+    }
+    if (Object.keys(payload).length === 0) {
+      toggleEditing(false);
+      return;
+    }
+    setIsSubmitting(true);
     try {
-      if (!userData.name || !userData.username || !userData.email) {
-        return showAlert({ type: 'danger', message: 'Fields can\'t be empty.' })
-      }
-      const validation = validateProfileUpdate();
-      if (!validation.valid) {
-        showAlert({ type: 'danger', message: validation.message || 'Invalid profile details' });
-        return;
-      }
-      setIsSubmitting(true);
       const data = await apiFetch(`/profile`, {
         method: 'PATCH',
         headers: {
           'Content-type': 'application/json'
         },
-        body: JSON.stringify(userData)
+        body: JSON.stringify(payload)
       });
 
       toggleEditing(false);
       setUserData(data.user);
       setOriginalData(data.user);
+      changeUser(data.user);
       showAlert({ type: 'success', message: 'Details updates successfully' });
 
     } catch (e: any) {
@@ -94,13 +109,21 @@ export default function Profile({ user, changeUser, showAlert }: ProfileProps) {
     }
   }
 
+  const navigateBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/', { replace: true });
+    }
+  }
+
   return (
     <section className="w-100 px-4 py-5" style={{ borderRadius: '.5rem .5rem 0 0' }} >
       <div className="row d-flex justify-content-center">
         <div className="col col-md-9 col-lg-7 col-xl-6">
           <div className="card" style={{ borderRadius: '15px' }}>
             <div className="card-body p-4">
-              <Link className="text-dark" to='/' title='Back'><ArrowBack /></Link>
+              <button className="btn text-dark" onClick={navigateBack} title='Back'><ArrowBack /></button>
               <div className="d-flex w-100 justify-content-center tex-center mx-1 mb-4 mt-2">
                 <div className="flex-shrink-0">
                   <img

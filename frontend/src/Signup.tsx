@@ -39,16 +39,14 @@ export default function Signup({ changeUser, showAlert }: SignupProps) {
     if (!email) return { valid: false, message: 'Email is required' };
     if (!password) return { valid: false, message: 'Password is required' };
 
-    if (username.includes(' ')) {
-      return { valid: false, message: 'Username cannot contain spaces' };
+    const validUsernameRegex = /^[a-zA-Z0-9_.]+$/;
+    if (!validUsernameRegex.test(username)) {
+      return { valid: false, message: 'Username can only contain letters, numbers, underscores and dots.' };
     }
 
-    if (!/^\S+@\S+\.\S+$/.test(email)) {
+    const validEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!validEmailRegex.test(email)) {
       return { valid: false, message: 'Invalid email format' };
-    }
-
-    if (password.includes(' ')) {
-      return { valid: false, message: 'Password cannot contain spaces' };
     }
 
     if (password.length < 6) {
@@ -63,7 +61,7 @@ export default function Signup({ changeUser, showAlert }: SignupProps) {
     if (isSubmitting) return;
     const validation = validateSignup();
     if (!validation.valid) {
-      showAlert({ type: 'danger', message: validation.message || 'Invalid signup details' });
+      showAlert({ type: 'danger', message: validation.message! });
       return;
     }
     setIsSubmitting(true);
@@ -79,7 +77,7 @@ export default function Signup({ changeUser, showAlert }: SignupProps) {
       localStorage.setItem('globalchat-authToken', token);
       changeUser(user);
       showAlert({ type: 'success', message: 'Welcome to Global Chat!' });
-      navigate('/');
+      navigate('/', { replace: true });
     } catch (err: any) {
       console.error("Signup Error: ", err);
       showAlert({ type: 'danger', message: err.message || 'Signup failed' });

@@ -20,30 +20,35 @@ export default function Login({ changeUser, showAlert }: LoginProps) {
     setCreds({ ...creds, [e.target.name]: e.target.value })
   }
 
-  const isFormValid = (): boolean => {
+  type ValidationResult = {
+    valid: boolean;
+    message?: string;
+  };
+
+
+  const isFormValid = (): ValidationResult => {
     if (!creds.identifier) {
-      showAlert({ type: 'danger', message: 'Email / Username is required' });
-      return false;
+      return { valid: false, message: 'Email / Username is required' };
     }
+
     if (!creds.password) {
-      showAlert({ type: 'danger', message: 'Password is required' });
-      return false;
+      return { valid: false, message: 'Password is required' };
     }
+
     if (creds.identifier.includes(' ')) {
-      showAlert({ type: 'danger', message: 'Email / Username cannot contain spaces' });
-      return false;
+      return { valid: false, message: 'Email / Username cannot contain spaces' };
     }
-    if (creds.password.includes(' ')) {
-      showAlert({ type: 'danger', message: 'Password cannot contain spaces' });
-      return false;
-    }
-    return true;
+
+    return { valid: true };
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (isSubmitting) return;
-    if (!isFormValid()) return;
+    const validation = isFormValid();
+    if (!validation.valid) {
+      showAlert({ type: 'danger', message: validation.message! });
+    }
     setIsSubmitting(true);
     try {
       const json = await apiFetch('/login', {
@@ -57,7 +62,7 @@ export default function Login({ changeUser, showAlert }: LoginProps) {
       localStorage.setItem('globalchat-authToken', token);
       changeUser(user);
       showAlert({ type: 'success', message: 'Logged in successfully!' });
-      navigate('/');
+      navigate('/', { replace: true });
     } catch (err: any) {
       console.error("Login Error: ", err)
       showAlert({ type: 'danger', message: err.message || 'Login failed' });

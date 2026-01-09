@@ -1,6 +1,6 @@
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Alert from './Alert';
 import type { PrivateUser } from './types/user'
 import type { Alert as AlertType } from './types/alert';
@@ -19,6 +19,7 @@ type NavbarProps = {
 }
 
 export default function Navbar({ dark, changeMode, wsRef, manualCloseRef, page = 'home', user, changeUser, alert, showAlert }: NavbarProps) {
+  const navigate = useNavigate();
   const logout = async () => {
     manualCloseRef.current = true;
     wsRef.current?.close();
@@ -28,6 +29,7 @@ export default function Navbar({ dark, changeMode, wsRef, manualCloseRef, page =
     changeUser(null);
 
     showAlert({ type: 'success', message: 'Logged out successfully!' });
+    navigate('/login', { replace: true });
   }
 
   const closeNavbar = () => {

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import Input from './Input';
-import type { PrivateUser, PublicUser } from './types/user';
+import type { PrivateUser } from './types/user';
 import type { Alert } from './types/alert';
 import type { Contact } from './types/contact';
 import type { Message } from './types/Message';
@@ -106,9 +106,9 @@ export default function Chat({ wsRef, dark, user, showAlert }: ChatProps) {
   const insertMessage = () => {
     try {
       if (!inputMessage._id) {
-        wsRef.current?.send(JSON.stringify({ type: 'NEW_MESSAGE', message: inputMessage.msg, conversationId: activeContact?.conversationId }));
+        wsRef.current?.send(JSON.stringify({ type: 'NEW_MESSAGE', message: inputMessage.msg.trim(), conversationId: activeContact?.conversationId }));
       } else {
-        wsRef.current?.send(JSON.stringify({ type: 'UPDATE_MESSAGE', message: inputMessage.msg, messageId: inputMessage._id, conversationId: activeContact?.conversationId }));
+        wsRef.current?.send(JSON.stringify({ type: 'UPDATE_MESSAGE', message: inputMessage.msg.trim(), messageId: inputMessage._id, conversationId: activeContact?.conversationId }));
       }
       setInputMessage({ msg: '', _id: null });
     } catch (e) {
@@ -133,14 +133,14 @@ export default function Chat({ wsRef, dark, user, showAlert }: ChatProps) {
           :
           <div className=''>
             <ChatWindow user={user} dark={dark} focusRef={focusRef} isMobile={isMobile} setMobileView={setMobileView} activeContact={activeContact} messages={messages} setInputMessage={setInputMessage} deleteChat={deleteChat} />
-            <Input dark={dark} focusRef={focusRef} activeContact={activeContact} inputMessage={inputMessage} setInputMessage={setInputMessage} insertMessage={insertMessage} />
+            <Input dark={dark} showAlert={showAlert} focusRef={focusRef} activeContact={activeContact} inputMessage={inputMessage} setInputMessage={setInputMessage} insertMessage={insertMessage} />
           </div>
         )
         : <>
           <ContactPanel dark={dark} user={user} contacts={contacts} isMobile={isMobile} setMobileView={setMobileView} setContacts={setContacts} activeContact={activeContact} setActiveContact={setActiveContact} focusRef={focusRef} showAlert={showAlert} />
           <div className=''>
             <ChatWindow user={user} dark={dark} focusRef={focusRef} isMobile={isMobile} setMobileView={setMobileView} activeContact={activeContact} messages={messages} setInputMessage={setInputMessage} deleteChat={deleteChat} />
-            <Input dark={dark} focusRef={focusRef} activeContact={activeContact} inputMessage={inputMessage} setInputMessage={setInputMessage} insertMessage={insertMessage} />
+            <Input dark={dark} showAlert={showAlert} focusRef={focusRef} activeContact={activeContact} inputMessage={inputMessage} setInputMessage={setInputMessage} insertMessage={insertMessage} />
           </div>
         </>
       }

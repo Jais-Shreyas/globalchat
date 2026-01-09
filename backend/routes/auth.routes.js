@@ -8,7 +8,8 @@ const router = express.Router();
 
 router.post('/googlelogin', async (req, res) => {
   try {
-    const { displayName, email, uid, photoURL } = req.body;
+    const { displayName, uid, photoURL } = req.body;
+    const email = req.body.email?.toLowerCase().trim();
     if (!displayName || !email || !uid) {
       return res.status(400).json({ message: 'Missing credentials' });
     }

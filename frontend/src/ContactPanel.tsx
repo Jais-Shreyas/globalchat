@@ -243,14 +243,22 @@ export default function ContactPanel({
                 <button className="btn btn-success" type="button" data-bs-toggle="dropdown" aria-expanded={false}>
                   <Add />
                 </button>
-                <ul className="dropdown-menu dropdown-menu-end m-0 p-0">
+                <ul className="bg-transparent dropdown-menu dropdown-menu-end m-0 p-0">
                   <button
-                    className={`dropdown-item bg-dark text-light btn btn-outline-${dark ? 'light' : 'dark'}`}
+                    className={`py-2 dropdown-item text-light btn btn-outline-${dark ? 'light' : 'dark'}`}
+                    style={{
+                      border: '1px solid white',
+                      backgroundColor: dark ? '#343a40' : '#e9ecef',
+                    }}
                     onClick={() => setIsAddingContact(true)}
                     title="Add a New Contact"
                   ><PersonAdd /> New contact</button>
                   <button
-                    className={`dropdown-item bg-dark text-light btn btn-outline-${dark ? 'light' : 'dark'}`}
+                    className={`py-2 dropdown-item text-light btn btn-outline-${dark ? 'light' : 'dark'}`}
+                    style={{
+                      border: '1px solid white',
+                      backgroundColor: dark ? '#343a40' : '#e9ecef',
+                    }}
                     onClick={() => setIsCreatingGroup(true)}
                     title="Create Group Chat"
                   ><GroupAdd /> New group</button>

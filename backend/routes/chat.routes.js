@@ -120,6 +120,7 @@ router.post('/contacts/new', authenticate, async (req, res) => {
       const groupConversation = new Conversation({
         type: 'group',
         participants: userIds,
+        admins: [req._id],
         name: name || 'New Group'
       });
       await groupConversation.save();
