@@ -22,7 +22,9 @@ const UserSchema = new Schema(
       type: String,
       required: true,
       unique: true,
-      trim: true
+      lowercase: true,
+      trim: true,
+      match: /^[a-z0-9._]+$/
     },
     password: {
       type: String,

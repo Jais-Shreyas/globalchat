@@ -25,8 +25,12 @@ export const updateMessage = async (message, messageId, userId) => {
   if (chat.sender.toString() !== userId) {
     throw new Error("Unauthorized to edit this message");
   }
-  chat.message = message.trim();
-  await chat.save();
+  if (chat.message !== message.trim()) {
+    chat.message = message.trim();
+    chat.editedAt = new Date();
+    console.log('Editing message:', chat);
+    await chat.save();
+  }
   return chat;
 };
 
@@ -38,5 +42,9 @@ export const deleteMessage = async (messageId, userId) => {
   if (chat.sender.toString() !== userId) {
     throw new Error("Unauthorized to delete this message");
   }
-  await Message.findByIdAndDelete(messageId);
+  chat.editedAt = null;
+  chat.deletedAt = new Date();
+  chat.message = '⊘ _This message was deleted._';
+  await chat.save();
+  return chat;
 };

@@ -8,23 +8,28 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SwipeUpIcon from '@mui/icons-material/SwipeUp';
+import { MoreVert } from "@mui/icons-material";
+import { apiFetch } from "./helpers/fetchHelper";
+import { Alert } from "./types/alert";
+import Input from "./Input";
 
 type ChatWindowProps = {
   user: PrivateUser | null;
   dark: boolean;
+  wsRef: React.RefObject<WebSocket | null>;
   focusRef: React.RefObject<HTMLTextAreaElement> | null;
   isMobile: boolean;
   setMobileView: (view: 'contacts' | 'chat') => void;
   messages: Message[];
   activeContact: Contact | null;
-  setInputMessage: (inputMessage: { msg: string; _id: string | null }) => void;
-  deleteChat: (_id: string) => void;
+  showAlert: (alert: Alert) => void;
 }
 
-export default function ChatWindow({ user, dark, focusRef, isMobile, setMobileView, activeContact, messages, setInputMessage, deleteChat }: ChatWindowProps) {
+export default function ChatWindow({ user, dark, wsRef, focusRef, isMobile, setMobileView, activeContact, messages, showAlert }: ChatWindowProps) {
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [scroll, setScroll] = useState(true);
+  const [inputHeight, setInputHeight] = useState<number>(72);
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
@@ -36,7 +41,35 @@ export default function ChatWindow({ user, dark, focusRef, isMobile, setMobileVi
     if (scroll) {
       scrollToBottom()
     }
-  }, [messages, scroll]);
+  }, [messages, scroll, inputHeight]);
+
+  useEffect(() => {
+    setInputMessage({ msg: '', _id: null });
+  }, [activeContact]);
+
+  const [inputMessage, setInputMessage] = useState<{ msg: string, _id: string | null }>({ msg: '', _id: null });
+  const insertMessage = () => {
+    try {
+      if (!inputMessage._id) {
+        wsRef.current?.send(JSON.stringify({ type: 'NEW_MESSAGE', message: inputMessage.msg.trim(), conversationId: activeContact?.conversationId }));
+      } else {
+        wsRef.current?.send(JSON.stringify({ type: 'UPDATE_MESSAGE', message: inputMessage.msg.trim(), messageId: inputMessage._id, conversationId: activeContact?.conversationId }));
+      }
+      setInputMessage({ msg: '', _id: null });
+    } catch (e) {
+      console.error(e);
+      showAlert({ type: 'danger', message: 'Could not send message' });
+    }
+  }
+  const deleteChat = async (_id: string) => {
+    try {
+      wsRef.current?.send(JSON.stringify({ type: 'DELETE_MESSAGE', messageId: _id, conversationId: activeContact?.conversationId }));
+    } catch (e) {
+      console.error(e);
+      showAlert({ type: 'danger', message: 'Could not delete message' });
+    }
+  };
+
   const showTime = (date: Date) => {
     const GetTime = () => {
       const date = new Date();
@@ -57,128 +90,227 @@ export default function ChatWindow({ user, dark, focusRef, isMobile, setMobileVi
     focusRef?.current?.focus();
   }, []);
 
-  return (
-    <div
-      id='chat-window'
-      style={{
-        width: isMobile ? '100vw' : '70vw',
-        border: isMobile ? '' : `1px solid ${dark ? 'white' : 'black'}`,
-        borderTop: '1px solid white',
-        borderRadius: isMobile ? '' : '1rem',
-        height: `calc(100dvh - 6.5rem)`,
-      }}
-    >
-      {activeContact && (
-        <div
-          className="w-100 d-flex align-items-center justify-content-between"
-          style={{ borderBottom: '1px solid white' }}
-        >
-          <div className="d-flex">
-            {isMobile &&
-              <button
-                type='button'
-                className="btn btn-link d-md-none"
-                onClick={() => setMobileView('contacts')}
-                style={{
-                  color: dark ? 'white' : 'black',
-                  backgroundColor: 'transparent'
-                }}
-              > <ArrowBackIcon /></button>}
-            <div className="d-flex"
-              onClick={() => {
-                navigate(`${activeContact.type === 'private' ? `/profile/${activeContact.username}` : `/conversation/${activeContact.conversationId}`}`);
-              }}
-              style={{ cursor: 'pointer' }}
-            >
-              <img
-                className="align-self-center mx-2 my-1"
-                src={activeContact.photoURL || (activeContact.type === 'private' ? "/defaultDP.jpg" : "/defaultGroupDP.png")}
-                alt={activeContact.name}
-                style={{ width: '2rem', height: '2rem', borderRadius: '50%', objectFit: 'cover', marginRight: '1rem' }}
-                onError={(e) => {
-                  e.currentTarget.src = "/defaultDP.jpg";
-                }}
-              />
-              <h3 className={`py-2 mb-0 text-white text-truncate`}
-                style={{ maxWidth: '40dvw' }}>
-                {activeContact.name}
-                {activeContact.username ? ` (@${activeContact.username})` : ''}
-              </h3>
-            </div>
-          </div>
-          <div key='scrollchat' className="px-2" >
-            <button onClick={toggleScroll} className={`btn btn-${scroll ? 'success' : 'danger'} btn-sm`}>
-              <SwipeUpIcon />Auto Scroll
-            </button>
-          </div>
-        </div>
-      )}
+  const isMessageDeletable = (msg: Message) => {
+    const now = new Date();
+    const createdAt = new Date(msg.createdAt);
+    const diffInDays = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
+    return diffInDays <= 7;
+  }
 
+  const isMessageEditable = (msg: Message) => {
+    const now = new Date();
+    const createdAt = new Date(msg.createdAt);
+    const diffInMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60);
+    return diffInMinutes <= 60;
+  }
+
+  const leaveGroup = async () => {
+    if (!activeContact) return;
+    try {
+      await apiFetch(`/group/${activeContact.conversationId}/leave`, {
+        method: 'POST',
+      });
+      navigate('/');
+      setMobileView('contacts');
+    } catch (error: any) {
+      showAlert({ type: 'danger', message: error.message || 'Could not leave group' });
+    }
+  }
+
+
+  return (
+    <>
       <div
+        id='chat-window'
         style={{
-          borderRadius: '1rem',
-          height: 'calc(100dvh - 10rem)',
-          overflowY: 'auto', overflowX: 'auto', scrollbarWidth: 'none',
-          padding: '1rem 1rem 0 1rem',
+          border: isMobile ? '' : `1px solid ${dark ? 'white' : 'black'}`,
+          borderTop: '1px solid white',
+          borderRadius: isMobile ? '' : '1rem',
+          width: '100%',
         }}
       >
-        {messages.map((msg, i) => {
-          const style = msg.username === user!.username ? {
-            whiteSpace: 'pre-wrap',
-            margin: '0.5rem 0 0.5rem 0',
-            maxWidth: '70%',
-            width: 'fit-content',
-            display: 'inline-block',
-            padding: '0.3rem 1rem 0.5em 1rem',
-            borderRadius: '1rem 0rem 1rem 1rem',
-          } : {
-            whiteSpace: 'pre-wrap',
-            margin: '0.5rem auto 0.5rem 0',
-            maxWidth: '70%',
-            width: 'fit-content',
-            display: 'inline-block',
-            padding: '0.3rem 1rem 0.5em 1rem',
-            borderRadius: '0rem 1rem 1rem 1rem',
-          }
-          return (
-            <div key={msg._id + 's'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'right' }}>
-              {(msg.username === user!.username) &&
-                <div className="dropdown">
-                  <button className="btn btn-secondary dropdown-toggle mx-2" style={{ backgroundColor: 'transparent', color: 'rgb(127, 127, 127)', border: 'none' }} type="button" data-bs-toggle="dropdown" aria-expanded={false}>
-                  </button>
-                  <ul className="dropdown-menu">
-                    <button className='dropdown-item btn d-inline' style={{ minWidth: '6rem' }} onClick={() => { setInputMessage({ msg: msg.message, _id: msg._id }); focusRef?.current?.focus() }}><EditIcon />Edit message</button>
-                    <button className='dropdown-item btn d-inline text-danger' style={{ minWidth: '6rem' }} onClick={() => deleteChat(msg._id)}><DeleteIcon />Delete message</button>
-                  </ul>
-                </div>
+        {activeContact && (
+          <div
+            className="d-flex align-items-center justify-content-between"
+            style={{
+              borderBottom: '1px solid white',
+              width: '100%',
+            }}
+          >
+            <div style={{width: '80%'}}>
+              {isMobile &&
+                <button
+                  type='button'
+                  className="btn btn-link d-md-none"
+                  onClick={() => setMobileView('contacts')}
+                  style={{
+                    color: dark ? 'white' : 'black',
+                    backgroundColor: 'transparent'
+                  }}
+                >
+                  <ArrowBackIcon />
+                </button>
               }
-              <div key={msg._id} style={style} className={`${msg.username === user!.username ? 'user' : 'notuser'} ${dark ? 'bg-light text-dark' : 'bg-dark text-light'} mt-0`}>
-                {activeContact?.type !== 'private' &&
-                  <Link to={`/profile/${msg.username}`} style={{ textDecoration: 'none', color: 'grey', textAlign: msg.username !== user!.username ? 'left' : 'left', display: 'block' }}>
-                    <div
-                      className="text-truncate"
-                      style={{
-                        fontSize: '0.7rem',
-                        fontWeight: 'bold',
-                        marginBottom: '-0.3rem',
-                        maxWidth: '10rem'
-                      }}>
-                      {'- '}{msg.username === user!.username ? 'You' : msg.name}
-                    </div>
-                  </Link>}
-                <div style={{
-                  overflowWrap: 'anywhere',
-                  fontFamily: 'inherit'
-                }}>
-                  <Markdown children={(msg.message)} />
-                </div>
-                <small style={{ fontSize: '0.5rem', lineHeight: '0', color: 'grey', display: 'block', textAlign: 'right', marginTop: '-0.7rem' }}>{showTime(msg.createdAt)}</small>
+              <div className="d-flex"
+                onClick={() => {
+                  navigate(`${activeContact.type === 'private' ? `/profile/${activeContact.username}` : `/conversation/${activeContact.conversationId}`}`);
+                }}
+                style={{
+                  cursor: 'pointer',
+                }}
+              >
+                <img
+                  className="align-self-center mx-2 my-1"
+                  src={activeContact.photoURL || (activeContact.type === 'private' ? "/defaultDP.jpg" : "/defaultGroupDP.png")}
+                  alt={activeContact.name}
+                  style={{ width: '2rem', height: '2rem', borderRadius: '50%', objectFit: 'cover', marginRight: '1rem' }}
+                  onError={(e) => {
+                    e.currentTarget.src = "/defaultDP.jpg";
+                  }}
+                />
+                <h3 className={`py-2 mb-0 text-white text-truncate`}
+                // style={{ maxWidth: isMobile ? '60vw' : '30vw' }}
+                >
+                  {activeContact.name}
+                  {activeContact.username ? ` (@${activeContact.username})` : ''}
+                </h3>
               </div>
             </div>
-          )
-        })}
-        <div key='endref' ref={messagesEndRef} />
-      </div >
-    </div>
+            <div>
+              <button className="btn text-light" type="button" data-bs-toggle="dropdown" aria-expanded={false}>
+                <MoreVert />
+              </button>
+              <ul className="dropdown-menu dropdown-menu-end m-0 p-0 border">
+                <button
+                  className={`py-2 dropdown-item text-light border-bottom btn btn-outline-${dark ? 'light' : 'dark'}`}
+                  onClick={toggleScroll}
+                  style={{
+                    backgroundColor: dark ? '#293037' : '#e9ecef',
+                  }}
+                  title="Toggle Auto Scroll"
+                >
+                  <SwipeUpIcon />Auto Scroll {scroll ? 'On' : 'Off'}
+                </button>
+                {(activeContact.type === 'group') && <button
+                  className={`py-2 dropdown-item text-light border-bottom btn btn-outline-${dark ? 'light' : 'dark'}`}
+                  style={{
+                    backgroundColor: dark ? '#293037' : '#e9ecef',
+                  }}
+                  onClick={() => navigate(`/conversation/${activeContact.conversationId}`)}
+                  title="About the group"
+                >Group Info</button>
+                }
+                {(activeContact.type === 'group') && <button
+                  className={`py-2 dropdown-item text-light border-bottom btn btn-outline-${dark ? 'light' : 'dark'}`}
+                  style={{
+                    backgroundColor: dark ? '#293037' : '#e9ecef',
+                  }}
+                  onClick={leaveGroup}
+                  title="Leave the group"
+                >Exit group</button>}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        <div
+          style={{
+            borderRadius: '1rem',
+            overflowY: 'auto', overflowX: 'auto', scrollbarWidth: 'none',
+            padding: '1rem 1rem 0 1rem',
+            height: `calc(100dvh - 7.5rem - ${inputHeight}px)`,
+          }}
+        >
+          {messages.map((msg, i) => {
+            const style = msg.username === user!.username ? {
+              whiteSpace: 'pre-wrap',
+              margin: '0.5rem 0 0.5rem 0',
+              maxWidth: '70%',
+              width: 'fit-content',
+              display: 'inline-block',
+              padding: '0.3rem 1rem 0.5em 1rem',
+              borderRadius: '1rem 0rem 1rem 1rem',
+            } : {
+              whiteSpace: 'pre-wrap',
+              margin: '0.5rem auto 0.5rem 0',
+              maxWidth: '70%',
+              width: 'fit-content',
+              display: 'inline-block',
+              padding: '0.3rem 1rem 0.5em 1rem',
+              borderRadius: '0rem 1rem 1rem 1rem',
+            }
+            return (
+              <div key={msg._id + 's'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'right' }}>
+                {((msg.username === user!.username) && (!msg.deletedAt)) &&
+                  <div className="dropdown">
+                    <button className="btn btn-secondary dropdown-toggle mx-2" style={{ backgroundColor: 'transparent', color: 'rgb(127, 127, 127)', border: 'none' }} type="button" data-bs-toggle="dropdown" aria-expanded={false}>
+                    </button>
+                    <ul className="dropdown-menu">
+                      <button
+                        disabled={!isMessageEditable(msg)}
+                        className='dropdown-item btn d-inline'
+                        style={{ minWidth: '6rem' }}
+                        onClick={() => {
+                          setInputMessage({ msg: msg.message, _id: msg._id });
+                          focusRef?.current?.focus()
+                        }}
+                      >
+                        <EditIcon />Edit message
+                      </button>
+                      <button
+                        disabled={!isMessageDeletable(msg)}
+                        className='dropdown-item btn d-inline text-danger'
+                        style={{ minWidth: '6rem' }}
+                        onClick={() => {
+                          deleteChat(msg._id)
+                        }}
+                      >
+                        <DeleteIcon />Delete message
+                      </button>
+                    </ul>
+                  </div>
+                }
+                <div key={msg._id} style={style} className={`${msg.username === user!.username ? 'user' : 'notuser'} ${dark ? 'bg-light text-dark' : 'bg-dark text-light'} mt-0`}>
+                  {activeContact?.type !== 'private' &&
+                    <Link to={`/profile/${msg.username}`} style={{ textDecoration: 'none', color: 'grey', textAlign: msg.username !== user!.username ? 'left' : 'left', display: 'block' }}>
+                      <div
+                        className="text-truncate"
+                        style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 'bold',
+                          marginBottom: '-0.3rem',
+                          maxWidth: '10rem'
+                        }}>
+                        {'- '}{msg.username === user!.username ? 'You' : msg.name}
+                      </div>
+                    </Link>}
+                  <div style={{
+                    overflowWrap: 'anywhere',
+                    fontFamily: 'inherit',
+                    color: msg.deletedAt ? 'grey' : (dark ? 'black' : 'white'),
+                  }}>
+                    <Markdown children={(msg.message)} />
+                  </div>
+                  <small
+                    style={{
+                      fontSize: '0.5rem',
+                      lineHeight: '0',
+                      color: 'grey',
+                      display: 'block',
+                      textAlign: 'right',
+                      marginTop: '-0.7rem'
+                    }}
+                  >
+                    {msg.editedAt && 'Edited '} {showTime(msg.deletedAt ?? msg.createdAt)}
+                  </small>
+                </div>
+              </div>
+            )
+          })}
+          <div key='endref' ref={messagesEndRef} />
+        </div >
+      </div>
+      <Input dark={dark} showAlert={showAlert} focusRef={focusRef} activeContact={activeContact} inputMessage={inputMessage} setInputMessage={setInputMessage} insertMessage={insertMessage} setInputHeight={setInputHeight} />
+    </>
   )
 }

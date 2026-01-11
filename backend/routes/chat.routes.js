@@ -13,7 +13,7 @@ router.get('/contacts', authenticate, async (req, res) => {
       .populate('participants', 'username name photoURL')
       .populate({
         path: 'lastMessage',
-        select: 'message sender createdAt updatedAt',
+        select: 'message sender createdAt updatedAt deletedAt',
         populate: { path: 'sender', select: 'username name' }
       })
       .select('type name participants');
@@ -47,7 +47,8 @@ router.get('/contacts', authenticate, async (req, res) => {
           message: conv.lastMessage.message,
           name: conv.lastMessage.sender.name,
           username: conv.lastMessage.sender.username,
-          sentAt: conv.lastMessage.updatedAt || conv.lastMessage.createdAt
+          sentAt: conv.lastMessage.updatedAt || conv.lastMessage.createdAt,
+          deletedAt: conv.lastMessage.deletedAt
         } : null
       };
     });
@@ -164,15 +165,16 @@ router.get('/chats/:conversationId', authenticate, async (req, res) => {
   try {
     const chats = await Message.find({ conversation: conversationId })
       .populate('sender', 'username name')
-      .select('message createdAt');
-
+      .select('message createdAt editedAt deletedAt');
     const formatted = chats.map(chat => ({
       _id: chat._id,
       message: chat.message,
       username: chat.sender.username,
       userId: chat.sender._id,
       name: chat.sender.name,
-      createdAt: chat.createdAt
+      createdAt: chat.createdAt,
+      editedAt: chat.editedAt,
+      deletedAt: chat.deletedAt
     }));
 
     res.status(200).json(formatted);

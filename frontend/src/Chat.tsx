@@ -20,7 +20,7 @@ export default function Chat({ wsRef, dark, user, showAlert }: ChatProps) {
   const focusRef = useRef<HTMLTextAreaElement | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [activeContact, setActiveContact] = useState<Contact | null>(null);
-  const [messages, setMessages] = useState<Message[]>([{ message: 'Loading messages...', username: 'System', userId: '', name: 'System', createdAt: new Date(), _id: '0' }]);
+  const [messages, setMessages] = useState<Message[]>([{ message: 'Loading messages...', username: 'System', userId: '', name: 'System', createdAt: new Date(), editedAt: null, deletedAt: null, _id: '0' }]);
   // const [displayingUser, setDisplayingUser] = useState<PublicUser | null>(null);
 
   const [isMobile, setIsMobile] = useState(window.matchMedia('(max-width: 767px)').matches);
@@ -50,7 +50,6 @@ export default function Chat({ wsRef, dark, user, showAlert }: ChatProps) {
       }
     }
     fetchMessages();
-    setInputMessage({ msg: '', _id: null });
     return () => { setMessages([]); };
   }, [activeContact]);
 
@@ -75,17 +74,17 @@ export default function Chat({ wsRef, dark, user, showAlert }: ChatProps) {
           return updatedContacts;
         });
         if (activeContact && conversationId === activeContact.conversationId) {
-          setMessages((prevMessages) => [...prevMessages, { message, username, name, createdAt, _id: messageId, userId: data.userId }]);
+          setMessages((prevMessages) => [...prevMessages, { message, username, name, createdAt, editedAt: null, deletedAt: null, _id: messageId, userId: data.userId }]);
         }
       } else if (data.type === 'UPDATE_MESSAGE') {
-        const { message, messageId } = data;
+        const { message, messageId, editedAt } = data;
         if (activeContact && data.conversationId === activeContact.conversationId) {
-          setMessages((prevMessages) => prevMessages.map(msg => msg._id === messageId ? { ...msg, message } : msg));
+          setMessages((prevMessages) => prevMessages.map(msg => msg._id === messageId ? { ...msg, message, editedAt } : msg));
         }
       } else if (data.type === 'DELETE_MESSAGE') {
-        const { messageId, conversationId } = data;
+        const { messageId, conversationId, message, deletedAt } = data;
         if (activeContact && conversationId === activeContact.conversationId) {
-          setMessages((prevMessages) => prevMessages.filter(msg => msg._id !== messageId));
+          setMessages((prevMessages) => prevMessages.map(msg => msg._id === messageId ? { ...msg, message, deletedAt } : msg));
         }
       } else if (data.type === 'NEW_CONTACT') {
         const { contact, creatorId } = data;
@@ -102,45 +101,103 @@ export default function Chat({ wsRef, dark, user, showAlert }: ChatProps) {
     };
   }, [wsRef.current, activeContact]);
 
-  const [inputMessage, setInputMessage] = useState<{ msg: string, _id: string | null }>({ msg: '', _id: null });
-  const insertMessage = () => {
-    try {
-      if (!inputMessage._id) {
-        wsRef.current?.send(JSON.stringify({ type: 'NEW_MESSAGE', message: inputMessage.msg.trim(), conversationId: activeContact?.conversationId }));
-      } else {
-        wsRef.current?.send(JSON.stringify({ type: 'UPDATE_MESSAGE', message: inputMessage.msg.trim(), messageId: inputMessage._id, conversationId: activeContact?.conversationId }));
-      }
-      setInputMessage({ msg: '', _id: null });
-    } catch (e) {
-      console.error(e);
-      showAlert({ type: 'danger', message: 'Could not send message' });
+  const [contactPanelWidth, setContactPanelWidth] = useState<number>(330);
+  const newPanelWidth = useRef<number>(330);
+
+  useEffect(() => {
+    const width = window.innerWidth;
+    if (width < 900) {
+      setContactPanelWidth(300);
+    } else if (width < 1200) {
+      setContactPanelWidth(350);
+    } else {
+      setContactPanelWidth(480);
     }
-  }
-  const deleteChat = async (_id: string) => {
-    try {
-      wsRef.current?.send(JSON.stringify({ type: 'DELETE_MESSAGE', messageId: _id, conversationId: activeContact?.conversationId }));
-    } catch (e) {
-      console.error(e);
-      showAlert({ type: 'danger', message: 'Could not delete message' });
-    }
+  }, []);
+
+
+  const isResizing = useRef<boolean>(false);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+    newPanelWidth.current = contactPanelWidth;
+
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isResizing.current) return;
+
+    let newWidth = e.clientX;
+
+    const min = 300;
+    const max = window.innerWidth - 400;
+
+    if (newWidth < min) newWidth = min;
+    if (newWidth > max) newWidth = max;
+
+    newPanelWidth.current = newWidth;
+
+    // Optional: move resizer visually without committing state
+    (e.currentTarget as HTMLElement).style.left = `${newWidth - 5}px`;
+    (e.target as HTMLElement).style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!isResizing.current) return;
+
+    isResizing.current = false;
+    setContactPanelWidth(newPanelWidth.current);
+
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    (e.target as HTMLElement).style.backgroundColor = 'transparent';
   };
 
   return (
-    <div className='d-flex flex-grow-1'>
+    <div className='d-flex'>
       {isMobile ?
         (mobileView === 'contacts' ?
-          <ContactPanel dark={dark} user={user} contacts={contacts} isMobile={isMobile} setMobileView={setMobileView} setContacts={setContacts} activeContact={activeContact} setActiveContact={setActiveContact} focusRef={focusRef} showAlert={showAlert} />
+          <div style={{ width: '100vw' }}>
+            <ContactPanel dark={dark} user={user} contacts={contacts} isMobile={isMobile} setMobileView={setMobileView} setContacts={setContacts} activeContact={activeContact} setActiveContact={setActiveContact} focusRef={focusRef} showAlert={showAlert} contactPanelWidth={contactPanelWidth} />
+          </div>
           :
-          <div className=''>
-            <ChatWindow user={user} dark={dark} focusRef={focusRef} isMobile={isMobile} setMobileView={setMobileView} activeContact={activeContact} messages={messages} setInputMessage={setInputMessage} deleteChat={deleteChat} />
-            <Input dark={dark} showAlert={showAlert} focusRef={focusRef} activeContact={activeContact} inputMessage={inputMessage} setInputMessage={setInputMessage} insertMessage={insertMessage} />
+          <div style={{ width: '100vw' }}>
+            <ChatWindow user={user} dark={dark} wsRef={wsRef} focusRef={focusRef} isMobile={isMobile} setMobileView={setMobileView} activeContact={activeContact} messages={messages}  showAlert={showAlert} />
           </div>
         )
         : <>
-          <ContactPanel dark={dark} user={user} contacts={contacts} isMobile={isMobile} setMobileView={setMobileView} setContacts={setContacts} activeContact={activeContact} setActiveContact={setActiveContact} focusRef={focusRef} showAlert={showAlert} />
-          <div className=''>
-            <ChatWindow user={user} dark={dark} focusRef={focusRef} isMobile={isMobile} setMobileView={setMobileView} activeContact={activeContact} messages={messages} setInputMessage={setInputMessage} deleteChat={deleteChat} />
-            <Input dark={dark} showAlert={showAlert} focusRef={focusRef} activeContact={activeContact} inputMessage={inputMessage} setInputMessage={setInputMessage} insertMessage={insertMessage} />
+          <div className=''
+            style={{
+              width: `${contactPanelWidth}px`,
+            }}>
+            <ContactPanel dark={dark} user={user} contacts={contacts} isMobile={isMobile} setMobileView={setMobileView} setContacts={setContacts} activeContact={activeContact} setActiveContact={setActiveContact} focusRef={focusRef} showAlert={showAlert} contactPanelWidth={contactPanelWidth} />
+          </div>
+          <div
+            style={{
+              height: 'calc(100dvh - 4rem)',
+              width: '5px',
+              cursor: 'col-resize',
+              position: 'absolute',
+              left: `${contactPanelWidth - 5}px`,
+              top: '4rem',
+              backgroundColor: 'transparent',
+              touchAction: 'none',
+              zIndex: 10,
+            }}
+            className="resizer"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+          />
+          <div
+            className=''
+            style={{
+              width: `calc(100dvw - ${contactPanelWidth}px)`,
+              height: 'calc(100dvh - 14rem)',
+            }}
+          >
+            <ChatWindow user={user} dark={dark} wsRef={wsRef} focusRef={focusRef} isMobile={isMobile} setMobileView={setMobileView} activeContact={activeContact} messages={messages} showAlert={showAlert} />
           </div>
         </>
       }

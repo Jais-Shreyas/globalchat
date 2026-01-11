@@ -81,6 +81,7 @@ export const handleWSConnection = (ws, req) => {
           type: 'UPDATE_MESSAGE',
           messageId: updatedMessage._id,
           message: updatedMessage.message,
+          editedAt: updatedMessage.editedAt,
           conversationId
         });
       } catch (err) {
@@ -98,19 +99,14 @@ export const handleWSConnection = (ws, req) => {
       }
 
       try {
-        await deleteMessage(messageId, ws.userId);
+        const deletedMessage = await deleteMessage(messageId, ws.userId);
         emitToUsers(participantIds, {
           type: 'DELETE_MESSAGE',
-          messageId,
-          conversationId
+          messageId: deletedMessage._id,
+          conversationId,
+          message: deletedMessage.message,
+          deletedAt: deletedMessage.deletedAt
         });
-        if (!conversation.lastMessage) {
-          const lastMessage = await Message.find({ conversation: conversationId })
-            .sort({ createdAt: -1 })
-            .limit(1);
-          conversation.lastMessage = lastMessage.length ? lastMessage[0]._id : null;
-          await conversation.save();
-        }
       } catch (err) {
         ws.send(JSON.stringify({
           type: "ERROR",

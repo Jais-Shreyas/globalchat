@@ -56,23 +56,27 @@ router.post('/googlelogin', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    const { password } = req.body;
-    const identifier = req.body.identifier?.toLowerCase().trim();
-
+    let { password, identifier } = req.body;
+    
     if (!identifier || !password) {
       return res.status(400).json({ message: 'Missing credentials' });
     }
+    
+    identifier = identifier.toLowerCase().trim();
 
-    const user = identifier.includes('@')
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const isEmail = EMAIL_REGEX.test(identifier);
+    
+    const user = isEmail
       ? await User.findOne({ email: identifier })
       : await User.findOne({ username: identifier });
 
     if (!user) {
-      return res.status(401).json({ message: 'Invalid username or password' });
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     if (user.authType === 'google') {
-      return res.status(409).json({
+      return res.status(400).json({
         message: 'This account uses Google login, please login with Google'
       });
     }
@@ -80,7 +84,7 @@ router.post('/login', async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
 
     if (!match) {
-      return res.status(401).json({ message: 'Invalid username or password' });
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
     await handleUserDataSend(res, user);
 
@@ -94,12 +98,26 @@ router.post('/login', async (req, res) => {
 router.post('/signup', async (req, res) => {
   try {
     const { name, password } = req.body;
-    const username = req.body.username?.toLowerCase();
+    const username = req.body.username;
     const email = req.body.email?.toLowerCase();
 
     if (!name || !username || !email || !password) {
       return res.status(400).json({
         message: 'All fields are required'
+      });
+    }
+
+    const USERNAME_REGEX = /^[a-z0-9._]+$/;
+    if (!USERNAME_REGEX.test(username)) {
+      return res.status(400).json({
+        message: 'Username can only contain lowercase letters, numbers, dots and underscores'
+      });
+    }
+
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!EMAIL_REGEX.test(email)) {
+      return res.status(400).json({
+        message: 'Invalid email format'
       });
     }
 

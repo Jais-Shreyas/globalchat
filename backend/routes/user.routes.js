@@ -33,7 +33,7 @@ router.get('/profile/:username', authenticate, async (req, res) => {
     }
 
     if (user._id.toString() !== req._id) {
-      user.email = undefined; // hide email for other users
+      user.email = null; // hide email for other users
     }
 
     res.status(200).json({ user });
@@ -46,36 +46,6 @@ router.get('/profile/:username', authenticate, async (req, res) => {
   }
 });
 
-router.get('/group/:conversationId', authenticate, async (req, res) => {
-  try {
-    const { conversationId } = req.params;
-    const conversation = await Conversation.findById(conversationId)
-      .select('name type photoURL participants admins')
-      .populate('participants', 'username name photoURL')
-      .populate('admins', 'username name photoURL');
-    if (!conversation) {
-      return res.status(404).json({
-        message: 'Conversation not found'
-      });
-    }
-    if (conversation.type !== 'global' && conversation.type !== 'group') {
-      return res.status(400).json({
-        message: 'Invalid conversation type'
-      });
-    }
-    if (conversation.type === 'global') {
-      conversation.participants = [];
-      conversation.admins = [];
-    }
-    res.status(200).json({ group: conversation });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({
-      message: 'Server error'
-    });
-  }
-});
 
 router.patch('/profile', authenticate, async (req, res) => {
   try {
@@ -131,37 +101,67 @@ router.patch('/profile', authenticate, async (req, res) => {
   }
 });
 
-router.get('/myContacts', authenticate, async (req, res) => {
+router.get('/group/:conversationId', authenticate, async (req, res) => {
   try {
-    const user = await User.findById(req._id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    const conversations = await Conversation.find({ participants: req._id })
+    const { conversationId } = req.params;
+    const conversation = await Conversation.findById(conversationId)
+      .select('name type photoURL participants admins')
       .populate('participants', 'username name photoURL')
-      .select('type name participants');
+      .populate('admins', 'username name photoURL');
+    if (!conversation) {
+      return res.status(404).json({
+        message: 'Conversation not found'
+      });
+    }
+    if (conversation.type !== 'global' && conversation.type !== 'group') {
+      return res.status(400).json({
+        message: 'Invalid conversation type'
+      });
+    }
+    if (conversation.type === 'global') {
+      conversation.participants = [];
+      conversation.admins = [];
+    }
+    res.status(200).json({ group: conversation });
 
-    const userContacts = conversations.map(conv => {
-      let contactInfo;
-      if (conv.type === 'private') {
-        const otherParticipant = conv.participants.find(participant => participant._id.toString() !== req._id);
-        contactInfo = {
-          _id: otherParticipant._id,
-          name: otherParticipant.name,
-          username: otherParticipant.username,
-          photoURL: otherParticipant.photoURL,
-        };
-      }
-      return contactInfo;
-    }).filter(contact => contact !== undefined);
-
-    res.status(200).json(userContacts);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Failed to fetch contacts' });
+    res.status(500).json({
+      message: 'Server error'
+    });
   }
 });
 
+router.post('/group/:groupId/leave', authenticate, async (req, res) => {
+  const { groupId } = req.params;
+  const userId = req._id;
+  try {
+    const group = await Conversation.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ message: 'Group not found' });
+    }
+    if (group.type !== 'group' && group.type !== 'global') {
+      return res.status(400).json({ message: 'Invalid conversation type' });
+    }
+    if (group.type === 'global') {
+      return res.status(400).json({ message: 'Cannot leave the Global Chat' });
+    }
+    if (group.participants.every(member => member.toString() !== userId)) {
+      return res.status(403).json({ message: 'You are not a participant of this group' });
+    }
+    group.participants = group.participants.filter(member => member.toString() !== userId);
+    const newAdmins = group.admins.filter(admin => admin.toString() !== userId);
+    if (newAdmins.length === 0) {
+      return res.status(400).json({ message: 'Group must have at least one admin, please make someone else an admin before you leave' });
+    }
+    group.admins = group.admins.filter(admin => admin.toString() !== userId);
+    await group.save();
+    res.status(200).json({ message: 'Left the group successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 router.patch('/group/:conversationId', authenticate, async (req, res) => {
   try {
@@ -209,6 +209,37 @@ router.patch('/group/:conversationId', authenticate, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.get('/myContacts', authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    const conversations = await Conversation.find({ participants: req._id })
+      .populate('participants', 'username name photoURL')
+      .select('type name participants');
+
+    const userContacts = conversations.map(conv => {
+      let contactInfo;
+      if (conv.type === 'private') {
+        const otherParticipant = conv.participants.find(participant => participant._id.toString() !== req._id);
+        contactInfo = {
+          _id: otherParticipant._id,
+          name: otherParticipant.name,
+          username: otherParticipant.username,
+          photoURL: otherParticipant.photoURL,
+        };
+      }
+      return contactInfo;
+    }).filter(contact => contact !== undefined);
+
+    res.status(200).json(userContacts);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Failed to fetch contacts' });
   }
 });
 

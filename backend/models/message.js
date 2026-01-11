@@ -15,6 +15,14 @@ const MessageSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'Conversation',
       required: true
+    },
+    editedAt: {
+      type: Date,
+      default: null
+    },
+    deletedAt: {
+      type: Date,
+      default: null
     }
   },
   {

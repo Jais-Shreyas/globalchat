@@ -1,4 +1,4 @@
-.user {
+/* .user {
   white-space: 'pre-wrap';
   margin: '0.5rem 0 0.5rem 0';
   max-width: '70%';
@@ -16,4 +16,20 @@
   display: 'inline-block';
   padding: '0.3rem 1rem 0.5em 1rem';
   border-radius: '0rem 1.5rem 1.5rem 1.5rem';
+} */
+
+.resizer {
+  position: relative;
+  user-select: none;
+  background-color: transparent;
+  top: '4rem';
+  width: '10px';
+  z-index: '10';
+  /* cursor: 'col-resize'; */
+  position: 'absolute';
+}
+
+.resizer:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+  z-index: 10;
 }

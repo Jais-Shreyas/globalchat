@@ -39,9 +39,9 @@ export default function Signup({ changeUser, showAlert }: SignupProps) {
     if (!email) return { valid: false, message: 'Email is required' };
     if (!password) return { valid: false, message: 'Password is required' };
 
-    const validUsernameRegex = /^[a-zA-Z0-9_.]+$/;
+    const validUsernameRegex = /^[a-z0-9._]+$/;
     if (!validUsernameRegex.test(username)) {
-      return { valid: false, message: 'Username can only contain letters, numbers, underscores and dots.' };
+      return { valid: false, message: 'Username can only contain lowercase letters, numbers, dots and underscores' };
     }
 
     const validEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

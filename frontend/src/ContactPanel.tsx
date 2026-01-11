@@ -17,7 +17,6 @@ type ContactPanelProps = {
   activeContact: Contact | null;
   setActiveContact: (contact: Contact | null) => void;
   focusRef: React.RefObject<HTMLTextAreaElement> | null;
-  // setMessages: (messages: Message[]) => void;
   showAlert: (alert: Alert) => void;
 }
 
@@ -107,6 +106,19 @@ export default function ContactPanel({
     showAlert(alert);
   }
 
+  const formatMessageTime = (date?: string | Date) => {
+    if (!date) return '';
+
+    const d = new Date(date);
+    const now = new Date();
+
+    const isToday = d.toLocaleDateString() === now.toLocaleDateString();
+
+    return isToday
+      ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : d.toLocaleDateString([], { day: '2-digit', month: 'short', year: (d.getFullYear !== now.getFullYear ? 'numeric' : undefined) });
+  };
+
   return (
     <div
       id='contact-sidebar'
@@ -115,8 +127,7 @@ export default function ContactPanel({
         border: isMobile ? '' : `1px solid ${dark ? 'white' : 'black'}`,
         borderRadius: '1rem',
         height: `calc(100dvh - 4rem)`,
-        width: isMobile ? '100vw' : '30vw',
-        padding: '0.5rem 1rem',
+        padding: '1rem 0.5rem 0 0.5rem',
       }}
     >
       {isCreatingGroup &&
@@ -328,27 +339,31 @@ export default function ContactPanel({
                       title={`@${contact.username ? contact.username : 'group chat'}`}
                     >
                       {contact.name}</h5>
-                    {/* {contact.lastMessage && (
-                      <small className="text-muted flex-shrink-0">
-                        {new Date(contact.lastMessage?.sentAt).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </small>
-                    )} */}
+                    {contact.lastMessage && (
+                      <div className="text-muted flex-shrink-0"
+                        style={{ fontSize: '0.7rem' }}
+                      >
+                        {formatMessageTime(contact.lastMessage?.sentAt)}
+                      </div>
+                    )}
                   </div>
                   {contact.lastMessage && (
-                    <div className="d-flex justify-content-between align-items-center">
-                      <p
+                    <div>
+                      <div
                         className="mb-0 text-truncate me-2 text-muted"
-                        style={{
-                          // color: 'rgba(186, 186, 186, 1)'
-                        }}
+                        title={contact.lastMessage.message}
                       >
                         {contact.lastMessage.username === user?.username ? 'You' : contact.lastMessage.name}
                         {': '}
-                        {contact.lastMessage.message}
-                      </p>
+                        {contact.lastMessage.deletedAt ?
+                          (contact.lastMessage.username === user?.username ?
+                            (<p className="d-inline">⊘ <i>You deleted this message</i></p>) :
+                            (<p className="d-inline">⊘ <i>This message was deleted</i></p>)
+                          ) :
+                          (
+                            contact.lastMessage.message
+                          )}
+                      </div>
 
                     </div>
                   )}
@@ -358,11 +373,7 @@ export default function ContactPanel({
             {(searchContact) &&
               <>
                 {filteredContacts.length === 0 &&
-                  <p>No contacts found.</p>}
-                {/* <button
-              className='btn btn-success my-1'
-              onClick={handleCreateContact}
-              >Start a new conversation</button> */}
+                  <p>No such contacts found.</p>}
               </>
             }
           </div>

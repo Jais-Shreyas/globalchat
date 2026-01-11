@@ -9,5 +9,6 @@ export type Contact = {
     name: string;
     username: string;
     sentAt: string;
+    deletedAt: Date | null;
   } | null;
 }

@@ -4,5 +4,7 @@ export type Message = {
   userId: string;
   name: string;
   createdAt: Date;
+  editedAt: Date | null;
+  deletedAt: Date | null;
   _id: string;
 }

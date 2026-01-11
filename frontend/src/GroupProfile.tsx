@@ -35,13 +35,11 @@ export default function GroupProfile({ user, showAlert }: GroupProfileProps) {
           _id: group._id
         };
 
-        console.log(user?._id);
         groupData.memberList?.sort((a, b) => {
           if (a._id === user?._id) return -1;
           if (b._id === user?._id) return 1;
           return a.name.localeCompare(b.name);
         });
-        console.log("sorting fetch")
 
         setGroupData(groupData);
         setOriginalData(groupData);
@@ -260,8 +258,8 @@ export default function GroupProfile({ user, showAlert }: GroupProfileProps) {
               </div>
               <div className='row mt-4'>
                 {originalData.type === 'global' ?
-                  <h4 className="mb-0 pb-0 text-center text-muted">
-                   <Info /> Member List not available for Global Chat
+                  <h4 className="mb-0 pb-0 mx-1 text-center text-muted ">
+                    Welcome to the Global Chat! This is a public group where all users are members by default. The member list and admin controls are disabled.
                   </h4>
                   :
                   originalData.memberList?.map(member => {
@@ -306,7 +304,6 @@ export default function GroupProfile({ user, showAlert }: GroupProfileProps) {
                                   color: isGettingDelete ? 'rgb(214 86 86)' : ''
                                 }}
                               >
-                                {isSelf ? '(You)' : member.name}
                                 {isEditing && !isSelf ?
                                   (isAdmin ?
                                     <span
@@ -333,6 +330,7 @@ export default function GroupProfile({ user, showAlert }: GroupProfileProps) {
                                     <Shield />
                                   </span>
                                 }
+                                {isSelf ? '(You)' : member.name}
 
                               </h6>
                               <small className="text-muted text-truncate">
