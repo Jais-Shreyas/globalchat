@@ -1,18 +1,15 @@
 import { useState } from 'react'
-import './ContinueWithGoogleButton.css'
-import { auth, provider, signInWithPopup } from './firebase'
+import { auth, provider, signInWithPopup } from '../helpers/firebase'
 import { useNavigate } from 'react-router-dom'
-import type { PrivateUser } from './types/user'
-import type { Alert } from './types/alert'
-import { apiFetch } from './helpers/fetchHelper'
+import { apiFetch } from '../helpers/fetchHelper'
+import { useAuth } from '../contexts/AuthContext'
+import { useAlert } from '../contexts/AlertContext'
+import '../styles/ContinueWithGoogleButton.css'
 
-type ContinueWithGoogleButtonProps = {
-  changeUser: (user: PrivateUser | null) => void;
-  showAlert: (alert: Alert) => void;
-}
-
-const ContinueWithGoogleButton = ({ changeUser, showAlert }: ContinueWithGoogleButtonProps) => {
+const ContinueWithGoogleButton = () => {
   const navigate = useNavigate();
+  const { setUser } = useAuth();
+  const { showAlert } = useAlert();
   const [isSigningIn, setIsSigningIn] = useState<boolean>(false);
   const handleLogin = async () => {
     try {
@@ -37,14 +34,14 @@ const ContinueWithGoogleButton = ({ changeUser, showAlert }: ContinueWithGoogleB
       });
       const { token, user } = json;
       localStorage.setItem('globalchat-authToken', token);
-      changeUser(user);
+      setUser(user);
       showAlert({ type: 'success', message: 'Logged in successfully' });
       navigate('/', { replace: true });
     } catch (error: any) {
       console.error('Google Login Error: ', error);
       showAlert({ type: 'danger', message: error.message || 'Google login failed' });
       localStorage.removeItem('globalchat-authToken');
-      changeUser(null);
+      setUser(null);
     } finally {
       setIsSigningIn(false);
     }

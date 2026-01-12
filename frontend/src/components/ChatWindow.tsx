@@ -1,32 +1,35 @@
+import Input from "./Input";
 import Markdown from "react-markdown";
-import { Link, useNavigate } from "react-router-dom";
-import { Message } from "./types/Message";
-import { Contact } from "./types/contact";
-import { PrivateUser } from "./types/user";
-import { useEffect, useRef, useState } from "react";
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SwipeUpIcon from '@mui/icons-material/SwipeUp';
+import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
 import { MoreVert } from "@mui/icons-material";
-import { apiFetch } from "./helpers/fetchHelper";
-import { Alert } from "./types/alert";
-import Input from "./Input";
+import { Message } from "../types/Message";
+import { apiFetch } from "../helpers/fetchHelper";
+import { useAuth } from "../contexts/AuthContext";
+import { useContacts } from "../contexts/ContactContext";
+import { useWebSocket } from "../contexts/WebSocketContext";
+import { useMessages } from "../contexts/MessagesContext";
+import { useAlert } from "../contexts/AlertContext";
 
 type ChatWindowProps = {
-  user: PrivateUser | null;
   dark: boolean;
-  wsRef: React.RefObject<WebSocket | null>;
   focusRef: React.RefObject<HTMLTextAreaElement> | null;
   isMobile: boolean;
   setMobileView: (view: 'contacts' | 'chat') => void;
-  messages: Message[];
-  activeContact: Contact | null;
-  showAlert: (alert: Alert) => void;
 }
 
-export default function ChatWindow({ user, dark, wsRef, focusRef, isMobile, setMobileView, activeContact, messages, showAlert }: ChatWindowProps) {
+export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: ChatWindowProps) {
   const navigate = useNavigate();
+  const { showAlert } = useAlert();
+  const { user } = useAuth();
+  const { activeContact, setActiveContact } = useContacts();
+  const { wsRef } = useWebSocket();
+  const { messages } = useMessages();
+
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [scroll, setScroll] = useState(true);
   const [inputHeight, setInputHeight] = useState<number>(72);
@@ -44,11 +47,12 @@ export default function ChatWindow({ user, dark, wsRef, focusRef, isMobile, setM
   }, [messages, scroll, inputHeight]);
 
   useEffect(() => {
+    setScroll(true);
     setInputMessage({ msg: '', _id: null });
   }, [activeContact]);
 
   const [inputMessage, setInputMessage] = useState<{ msg: string, _id: string | null }>({ msg: '', _id: null });
-  const insertMessage = () => {
+  const sendMessage = () => {
     try {
       if (!inputMessage._id) {
         wsRef.current?.send(JSON.stringify({ type: 'NEW_MESSAGE', message: inputMessage.msg.trim(), conversationId: activeContact?.conversationId }));
@@ -117,6 +121,10 @@ export default function ChatWindow({ user, dark, wsRef, focusRef, isMobile, setM
     }
   }
 
+  if (!activeContact) {
+    return null;
+  }
+
 
   return (
     <>
@@ -129,89 +137,86 @@ export default function ChatWindow({ user, dark, wsRef, focusRef, isMobile, setM
           width: '100%',
         }}
       >
-        {activeContact && (
-          <div
-            className="d-flex align-items-center justify-content-between"
-            style={{
-              borderBottom: '1px solid white',
-              width: '100%',
-            }}
-          >
-            <div style={{width: '80%'}}>
-              {isMobile &&
-                <button
-                  type='button'
-                  className="btn btn-link d-md-none"
-                  onClick={() => setMobileView('contacts')}
-                  style={{
-                    color: dark ? 'white' : 'black',
-                    backgroundColor: 'transparent'
-                  }}
-                >
-                  <ArrowBackIcon />
-                </button>
-              }
-              <div className="d-flex"
-                onClick={() => {
-                  navigate(`${activeContact.type === 'private' ? `/profile/${activeContact.username}` : `/conversation/${activeContact.conversationId}`}`);
+        <div
+          id='chat-window-header'
+          className="d-flex align-items-center justify-content-between"
+          style={{
+            borderBottom: '1px solid white',
+            width: '100%',
+          }}
+        >
+          <div className="d-flex" style={{ width: '80%' }}>
+            <button
+              type='button'
+              className="btn btn-link"
+              onClick={() => { setActiveContact(null); setMobileView('contacts'); }}
+              style={{
+                color: dark ? 'white' : 'black',
+                backgroundColor: 'transparent'
+              }}
+            >
+              <ArrowBackIcon />
+            </button>
+            <div className="d-flex"
+              onClick={() => {
+                navigate(`${activeContact.type === 'private' ? `/profile/${activeContact.username}` : `/conversation/${activeContact.conversationId}`}`);
+              }}
+              style={{
+                cursor: 'pointer',
+                alignItems: 'center',
+                minWidth: '0',
+              }}
+            >
+              <img
+                className="align-self-center mx-2 my-1"
+                src={activeContact.photoURL || (activeContact.type === 'private' ? "/defaultDP.jpg" : "/defaultGroupDP.png")}
+                alt={activeContact.name}
+                style={{ width: '2rem', height: '2rem', borderRadius: '50%', objectFit: 'cover', marginRight: '1rem' }}
+                onError={(e) => {
+                  e.currentTarget.src = "/defaultDP.jpg";
                 }}
-                style={{
-                  cursor: 'pointer',
-                }}
-              >
-                <img
-                  className="align-self-center mx-2 my-1"
-                  src={activeContact.photoURL || (activeContact.type === 'private' ? "/defaultDP.jpg" : "/defaultGroupDP.png")}
-                  alt={activeContact.name}
-                  style={{ width: '2rem', height: '2rem', borderRadius: '50%', objectFit: 'cover', marginRight: '1rem' }}
-                  onError={(e) => {
-                    e.currentTarget.src = "/defaultDP.jpg";
-                  }}
-                />
-                <h3 className={`py-2 mb-0 text-white text-truncate`}
-                // style={{ maxWidth: isMobile ? '60vw' : '30vw' }}
-                >
-                  {activeContact.name}
-                  {activeContact.username ? ` (@${activeContact.username})` : ''}
-                </h3>
-              </div>
-            </div>
-            <div>
-              <button className="btn text-light" type="button" data-bs-toggle="dropdown" aria-expanded={false}>
-                <MoreVert />
-              </button>
-              <ul className="dropdown-menu dropdown-menu-end m-0 p-0 border">
-                <button
-                  className={`py-2 dropdown-item text-light border-bottom btn btn-outline-${dark ? 'light' : 'dark'}`}
-                  onClick={toggleScroll}
-                  style={{
-                    backgroundColor: dark ? '#293037' : '#e9ecef',
-                  }}
-                  title="Toggle Auto Scroll"
-                >
-                  <SwipeUpIcon />Auto Scroll {scroll ? 'On' : 'Off'}
-                </button>
-                {(activeContact.type === 'group') && <button
-                  className={`py-2 dropdown-item text-light border-bottom btn btn-outline-${dark ? 'light' : 'dark'}`}
-                  style={{
-                    backgroundColor: dark ? '#293037' : '#e9ecef',
-                  }}
-                  onClick={() => navigate(`/conversation/${activeContact.conversationId}`)}
-                  title="About the group"
-                >Group Info</button>
-                }
-                {(activeContact.type === 'group') && <button
-                  className={`py-2 dropdown-item text-light border-bottom btn btn-outline-${dark ? 'light' : 'dark'}`}
-                  style={{
-                    backgroundColor: dark ? '#293037' : '#e9ecef',
-                  }}
-                  onClick={leaveGroup}
-                  title="Leave the group"
-                >Exit group</button>}
-              </ul>
+              />
+              <h3 className={`py-2 mb-0 text-white text-truncate`}>
+                {activeContact.name}
+                {activeContact.username ? ` (@${activeContact.username})` : ''}
+              </h3>
             </div>
           </div>
-        )}
+          <div>
+            <button className="btn text-light" type="button" data-bs-toggle="dropdown" aria-expanded={false}>
+              <MoreVert />
+            </button>
+            <ul className="dropdown-menu dropdown-menu-end m-0 p-0 border">
+              <button
+                className={`py-2 dropdown-item text-light border-bottom btn btn-outline-${dark ? 'light' : 'dark'}`}
+                onClick={toggleScroll}
+                style={{
+                  backgroundColor: dark ? '#293037' : '#e9ecef',
+                }}
+                title="Toggle Auto Scroll"
+              >
+                <SwipeUpIcon />Auto Scroll {scroll ? 'On' : 'Off'}
+              </button>
+              {(activeContact.type === 'group') && <button
+                className={`py-2 dropdown-item text-light border-bottom btn btn-outline-${dark ? 'light' : 'dark'}`}
+                style={{
+                  backgroundColor: dark ? '#293037' : '#e9ecef',
+                }}
+                onClick={() => navigate(`/conversation/${activeContact.conversationId}`)}
+                title="About the group"
+              >Group Info</button>
+              }
+              {(activeContact.type === 'group') && <button
+                className={`py-2 dropdown-item text-light border-bottom btn btn-outline-${dark ? 'light' : 'dark'}`}
+                style={{
+                  backgroundColor: dark ? '#293037' : '#e9ecef',
+                }}
+                onClick={leaveGroup}
+                title="Leave the group"
+              >Exit group</button>}
+            </ul>
+          </div>
+        </div>
 
         <div
           style={{
@@ -310,7 +315,7 @@ export default function ChatWindow({ user, dark, wsRef, focusRef, isMobile, setM
           <div key='endref' ref={messagesEndRef} />
         </div >
       </div>
-      <Input dark={dark} showAlert={showAlert} focusRef={focusRef} activeContact={activeContact} inputMessage={inputMessage} setInputMessage={setInputMessage} insertMessage={insertMessage} setInputHeight={setInputHeight} />
+      <Input dark={dark} isMobile={isMobile} focusRef={focusRef} inputMessage={inputMessage} setInputMessage={setInputMessage} sendMessage={sendMessage} setInputHeight={setInputHeight} />
     </>
   )
 }

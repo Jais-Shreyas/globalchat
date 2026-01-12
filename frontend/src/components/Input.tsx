@@ -1,6 +1,7 @@
 import SendIcon from '@mui/icons-material/Send';
 import EditIcon from '@mui/icons-material/Edit';
-import type { Alert } from './types/alert';
+import { useContacts } from '../contexts/ContactContext';
+import { useAlert } from '../contexts/AlertContext';
 
 type InputMsgProp = {
   msg: string;
@@ -9,36 +10,35 @@ type InputMsgProp = {
 
 type InputProps = {
   dark: boolean;
-  showAlert: (alert: Alert) => void;
+  isMobile: boolean;
   focusRef: React.RefObject<HTMLTextAreaElement> | null;
-  activeContact: { conversationId: string } | null;
   inputMessage: InputMsgProp;
   setInputMessage: (inputMessage: InputMsgProp) => void;
-  insertMessage: () => void;
+  sendMessage: () => void;
   setInputHeight: (height: number) => void;
 }
 
-export default function Input({ dark, showAlert, focusRef, activeContact, inputMessage, setInputMessage, insertMessage, setInputHeight }: InputProps) {
+export default function Input({ dark, isMobile,  focusRef, inputMessage, setInputMessage, sendMessage, setInputHeight }: InputProps) {
+  const { activeContact } = useContacts();
+  const { showAlert } = useAlert();
   const handleSend = () => {
     if (inputMessage.msg.length > 2048) {
       showAlert({ type: 'danger', message: 'Message too long. Maximum length is 2048 characters.' });
       return;
     }
-    insertMessage();
+    sendMessage();
   }
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.shiftKey) {
-      return;
-    }
-    if (e.key === 'Enter') {
+    if (isMobile) return;
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   }
   const handleTextAreaUpdate = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     e.target.style.height = 'auto';
-    e.target.style.height = `${Math.min(150, e.target.scrollHeight)}px`;
-    setInputHeight(Math.min(150, e.target.scrollHeight));
+    e.target.style.height = `${Math.min(180, e.target.scrollHeight)}px`;
+    setInputHeight(Math.min(180, e.target.scrollHeight));
     setInputMessage({ ...inputMessage, msg: e.target.value })
   }
   return (
@@ -62,7 +62,7 @@ export default function Input({ dark, showAlert, focusRef, activeContact, inputM
         aria-label="Your message"
         aria-describedby="button-addon2"
         disabled={!activeContact}
-        style={{ minHeight: '36px', maxHeight: '150px', resize: 'none', overflowY: 'auto' }}
+        style={{ minHeight: '72px', maxHeight: '180px', resize: 'none', overflowY: 'auto', scrollbarWidth: 'none' }}
       ></textarea>
       <button className={`btn btn-success  ${!inputMessage.msg.trim() || !activeContact ? 'disabled' : ''}`} type="button" id="button-addon2" onClick={handleSend} >{inputMessage._id ? <EditIcon /> : <SendIcon />}</button>
     </form>

@@ -1,22 +1,19 @@
 import React, { useEffect, useState } from 'react'
 import { redirect, useNavigate, useParams } from 'react-router-dom';
-import { PrivateUser } from './types/user';
-import { Alert } from './types/alert';
-import { createNewContact } from './helpers/chatHelper';
-import { apiFetch } from './helpers/fetchHelper';
+import { PrivateUser } from '../types/user';
+import { createNewContact } from '../helpers/chatHelper';
+import { apiFetch } from '../helpers/fetchHelper';
 import { ArrowBack, Image, Person } from '@mui/icons-material';
+import { useAuth } from '../contexts/AuthContext';
+import { useAlert } from '../contexts/AlertContext';
 
-type ProfileProps = {
-  user: PrivateUser | null;
-  changeUser: (user: PrivateUser | null) => void;
-  showAlert: (alert: Alert) => void;
-}
-
-export default function Profile({ user, changeUser, showAlert }: ProfileProps) {
+export default function Profile() {
   const { username } = useParams<{ username: string }>();
   if (!username) {
     redirect('/');
   }
+  const { user, setUser } = useAuth();
+  const { showAlert } = useAlert();
   const navigate = useNavigate();
   const [userData, setUserData] = useState<PrivateUser>({ name: "---", username: "---", email: "", _id: "", photoURL: null });
   const [originalData, setOriginalData] = useState<PrivateUser>({ name: "---", username: "---", email: "", _id: "", photoURL: null });
@@ -98,7 +95,7 @@ export default function Profile({ user, changeUser, showAlert }: ProfileProps) {
       toggleEditing(false);
       setUserData(data.user);
       setOriginalData(data.user);
-      changeUser(data.user);
+      setUser(data.user);
       showAlert({ type: 'success', message: 'Details updates successfully' });
 
     } catch (e: any) {

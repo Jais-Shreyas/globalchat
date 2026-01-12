@@ -1,18 +1,16 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { apiFetch } from "./helpers/fetchHelper";
-import { GroupData } from "./types/GroupData";
+import { apiFetch } from "../helpers/fetchHelper";
+import { GroupData } from "../types/GroupData";
 import { AddModerator, ArrowBack, Cancel, Close, Edit, Info, PersonAdd, PersonAddAlt1Outlined, PersonAddDisabled, PersonAddOutlined, PersonRemoveOutlined, RemoveModerator, SaveOutlined, Shield } from "@mui/icons-material";
-import { PrivateUser, PublicUser } from "./types/user";
-import type { Alert } from "./types/alert";
+import { PublicUser } from "../types/user";
+import { useAuth } from "../contexts/AuthContext";
+import { useAlert } from "../contexts/AlertContext";
 
-type GroupProfileProps = {
-  user: PrivateUser | null;
-  showAlert: (alert: Alert) => void;
-}
-
-export default function GroupProfile({ user, showAlert }: GroupProfileProps) {
+export default function GroupProfile() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { showAlert } = useAlert();
   const { conversationId } = useParams<{ conversationId: string }>();
   const [groupData, setGroupData] = useState<GroupData>({ name: '', type: 'group', memberList: [], admins: [], _id: '', photoURL: null });
   const [originalData, setOriginalData] = useState<GroupData>({ name: '', type: 'group', memberList: [], admins: [], _id: '', photoURL: null });
@@ -333,9 +331,9 @@ export default function GroupProfile({ user, showAlert }: GroupProfileProps) {
                                 {isSelf ? '(You)' : member.name}
 
                               </h6>
-                              <small className="text-muted text-truncate">
+                              <div className="text-muted text-truncate" style={{ fontSize: '0.9rem'}}>
                                 @{member.username}
-                              </small>
+                              </div>
                             </div>
                             {isEditing && (isSelf ?
                               <div

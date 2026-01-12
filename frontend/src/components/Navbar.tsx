@@ -1,32 +1,28 @@
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
-import { Link, useNavigate } from "react-router-dom";
 import Alert from './Alert';
-import type { PrivateUser } from './types/user'
-import type { Alert as AlertType } from './types/alert';
-import './Navbar.css';
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from '../contexts/AuthContext';
+import { useAlert } from '../contexts/AlertContext';
+import { useWebSocket } from '../contexts/WebSocketContext';
+import { useTheme } from '../contexts/ThemeContext';
+import '../styles/Navbar.css';
 
 type NavbarProps = {
-  dark: boolean;
-  changeMode: () => void;
-  wsRef: React.MutableRefObject<WebSocket | null>;
-  manualCloseRef: React.MutableRefObject<boolean>;
   page?: 'home' | 'about' | 'login' | 'signup' | 'profile';
-  user: PrivateUser | null;
-  changeUser: (user: PrivateUser | null) => void;
-  alert: AlertType | null;
-  showAlert: (alert: AlertType) => void;
 }
 
-export default function Navbar({ dark, changeMode, wsRef, manualCloseRef, page = 'home', user, changeUser, alert, showAlert }: NavbarProps) {
+export default function Navbar({ page = 'home' }: NavbarProps) {
   const navigate = useNavigate();
-  const logout = async () => {
-    manualCloseRef.current = true;
-    wsRef.current?.close();
-    wsRef.current = null;
+  const { showAlert } = useAlert();
+  const { dark, changeMode } = useTheme();
+  const { user, setUser } = useAuth();
+  const { closeWS } = useWebSocket();
 
+  const logout = async () => {
+    closeWS();
     localStorage.removeItem('globalchat-authToken');
-    changeUser(null);
+    setUser(null);
 
     showAlert({ type: 'success', message: 'Logged out successfully!' });
     navigate('/login', { replace: true });
@@ -63,7 +59,7 @@ export default function Navbar({ dark, changeMode, wsRef, manualCloseRef, page =
             <span className="navbar-toggler-icon"></span>
           </button>
           <div className="collapse navbar-collapse" id="navbarSupportedContent">
-            <ul className="navbar-nav mb-2 mb-md-0 w-100 bg-dark mobile-outer rounded-3 p-2">
+            <ul className={`navbar-nav mb-2 mb-md-0 w-100 bg-${dark ? 'dark' : 'light'} mobile-outer rounded-3 p-2`}>
               <li className="nav-item mobile-border">
                 <Link onClick={closeNavbar} className={`nav-link ${page === 'home' ? 'active' : ''}`} to="/">Home</Link>
               </li>
@@ -118,7 +114,7 @@ export default function Navbar({ dark, changeMode, wsRef, manualCloseRef, page =
           </div>
         </div>
       </nav>
-      <Alert alert={alert} />
+      <Alert />
     </>
   );
 }

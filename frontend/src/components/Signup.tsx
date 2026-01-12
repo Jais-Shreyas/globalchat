@@ -1,21 +1,15 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom';
 import ContinueWithGoogleButton from './ContinueWithGoogleButton';
-import { PrivateUser } from './types/user';
-import { Alert } from './types/alert';
-import { apiFetch } from './helpers/fetchHelper';
-import {
-  AccountCircleOutlined, AlternateEmail,
-  Password, PersonOutline,
-} from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
+import { apiFetch } from '../helpers/fetchHelper';
+import { AccountCircleOutlined, AlternateEmail, Password, PersonOutline } from '@mui/icons-material';
+import { useAuth } from '../contexts/AuthContext';
+import { useAlert } from '../contexts/AlertContext';
 
-type SignupProps = {
-  changeUser: (user: PrivateUser | null) => void;
-  showAlert: (alert: Alert) => void;
-}
-
-export default function Signup({ changeUser, showAlert }: SignupProps) {
+export default function Signup() {
   const navigate = useNavigate();
+  const { setUser } = useAuth();
+  const {showAlert} = useAlert();
   const [creds, setCreds] = useState({ name: "", username: "", email: "", password: "" });
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [passwordVisible, setPasswordVisible] = useState<boolean>(false);
@@ -75,14 +69,14 @@ export default function Signup({ changeUser, showAlert }: SignupProps) {
       });
       const { user, token } = json;
       localStorage.setItem('globalchat-authToken', token);
-      changeUser(user);
+      setUser(user);
       showAlert({ type: 'success', message: 'Welcome to Global Chat!' });
       navigate('/', { replace: true });
     } catch (err: any) {
       console.error("Signup Error: ", err);
       showAlert({ type: 'danger', message: err.message || 'Signup failed' });
       localStorage.removeItem('globalchat-authToken');
-      changeUser(null);
+      setUser(null);
     } finally {
       setIsSubmitting(false);
     }
@@ -130,7 +124,7 @@ export default function Signup({ changeUser, showAlert }: SignupProps) {
             </div>
           </form>
           <div className="d-grid mb-3 mx-4">
-            <ContinueWithGoogleButton changeUser={changeUser} showAlert={showAlert} />
+            <ContinueWithGoogleButton />
           </div>
         </div>
       </div>

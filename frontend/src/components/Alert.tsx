@@ -1,10 +1,7 @@
-import type { Alert as AlertType } from './types/alert'
+import { useAlert } from "../contexts/AlertContext";
 
-type AlertProps = {
-  alert: AlertType | null
-};
-
-export default function Alert({ alert }: AlertProps) {
+export default function Alert() {
+  const { alert } = useAlert();
   if (!alert) return null;
   return (
     <>

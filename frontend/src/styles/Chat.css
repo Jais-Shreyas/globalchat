@@ -1,0 +1,14 @@
+.resizer {
+  position: relative;
+  user-select: none;
+  background-color: transparent;
+  top: '4rem';
+  width: '10px';
+  z-index: '10';
+  position: 'absolute';
+}
+
+.resizer:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+  z-index: 10;
+}

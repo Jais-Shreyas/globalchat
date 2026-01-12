@@ -1,32 +1,24 @@
 import { useEffect, useState } from "react";
-import { Contact } from "./types/contact";
-import { createGroup, createNewContact } from "./helpers/chatHelper";
-import { Alert } from "./types/alert";
-import { apiFetch } from "./helpers/fetchHelper";
-import { PrivateUser } from "./types/user";
+import { Contact } from "../types/contact";
+import { createGroup, createNewContact } from "../helpers/chatHelper";
 import { Link } from "react-router-dom";
 import { Add, ArrowBack, ArrowForward, GroupAdd, PersonAdd, SendRounded } from "@mui/icons-material";
+import { useAuth } from "../contexts/AuthContext";
+import { useAlert } from "../contexts/AlertContext";
+import { useContacts } from "../contexts/ContactContext";
 
 type ContactPanelProps = {
   dark: boolean;
-  user: PrivateUser | null;
-  contacts: Contact[];
   isMobile: boolean;
   setMobileView: (view: 'contacts' | 'chat') => void;
-  setContacts: (contact: Contact[]) => void;
-  activeContact: Contact | null;
-  setActiveContact: (contact: Contact | null) => void;
   focusRef: React.RefObject<HTMLTextAreaElement> | null;
-  showAlert: (alert: Alert) => void;
 }
 
-export default function ContactPanel({
-  dark, user,
-  isMobile, setMobileView,
-  contacts, setContacts,
-  activeContact, setActiveContact,
-  focusRef, showAlert }: ContactPanelProps
-) {
+export default function ContactPanel({ dark, isMobile, setMobileView, focusRef }: ContactPanelProps) {
+  const { user } = useAuth();
+  const { showAlert } = useAlert();
+  const { contacts, activeContact, setActiveContact } = useContacts();
+
   const [isAddingContact, setIsAddingContact] = useState<boolean>(false);
   const [addContactName, setAddContactname] = useState<string>('');
 
@@ -45,31 +37,6 @@ export default function ContactPanel({
     }
     focusRef?.current?.focus();
   }
-
-  useEffect(() => {
-    const fetchContacts = async () => {
-      try {
-        const data = await apiFetch('/contacts');
-        const sortedData = data.sort((a: Contact, b: Contact) => {
-          const dateA = a.lastMessage ? new Date(a.lastMessage.sentAt).getTime() : 0;
-          const dateB = b.lastMessage ? new Date(b.lastMessage.sentAt).getTime() : 0;
-          return dateB - dateA;
-        });
-        setContacts(sortedData);
-        if (!activeContact) {
-          const globalChat = data.find((contact: Contact) => contact.type === 'global');
-          if (globalChat) {
-            setActiveContact(globalChat);
-          }
-        }
-      } catch (error: any) {
-        console.error('Error fetching contacts:', error);
-        showAlert({ type: 'danger', message: error.message || 'Could not fetch contacts' });
-      }
-    }
-    fetchContacts();
-  }, []);
-
 
   useEffect(() => {
     if (!searchContact) {

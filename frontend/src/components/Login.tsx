@@ -1,18 +1,16 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import ContinueWithGoogleButton from './ContinueWithGoogleButton';
-import type { Alert } from './types/alert'
-import { PrivateUser } from './types/user'
-import { apiFetch } from './helpers/fetchHelper';
+import { apiFetch } from '../helpers/fetchHelper';
 import { Lock, Person } from '@mui/icons-material';
+import { useAuth } from '../contexts/AuthContext';
+import { useAlert } from '../contexts/AlertContext';
 
-type LoginProps = {
-  changeUser: (user: PrivateUser | null) => void;
-  showAlert: (alert: Alert) => void;
-}
 
-export default function Login({ changeUser, showAlert }: LoginProps) {
+export default function Login() {
   const navigate = useNavigate();
+  const { setUser } = useAuth();
+  const { showAlert } = useAlert();
   const [creds, setCreds] = useState({ identifier: "", password: "" });
   const [passwordVisible, setPasswordVisible] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -60,13 +58,13 @@ export default function Login({ changeUser, showAlert }: LoginProps) {
       });
       const { token, user } = json;
       localStorage.setItem('globalchat-authToken', token);
-      changeUser(user);
+      setUser(user);
       showAlert({ type: 'success', message: 'Logged in successfully!' });
       navigate('/', { replace: true });
     } catch (err: any) {
       console.error("Login Error: ", err)
       showAlert({ type: 'danger', message: err.message || 'Login failed' });
-      changeUser(null);
+      setUser(null);
     } finally {
       setIsSubmitting(false);
     }
@@ -105,7 +103,7 @@ export default function Login({ changeUser, showAlert }: LoginProps) {
           </div>
         </form>
         <div className="d-grid mb-3 mx-4">
-          <ContinueWithGoogleButton changeUser={changeUser} showAlert={showAlert} />
+          <ContinueWithGoogleButton />
         </div>
         New? <a href="/signup">Create an account</a>
       </div>
