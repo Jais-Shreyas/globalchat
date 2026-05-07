@@ -52,6 +52,9 @@ export default function ContactPanel({ dark, isMobile, setMobileView, focusRef }
   }, [searchContact, contacts]);
 
   const handleCreateContact = async () => {
+    if (!addContactName) {
+      return;
+    }
     const alert = await createNewContact(addContactName);
     if (alert.type === 'success') {
       setSearchContact('');
@@ -204,6 +207,7 @@ export default function ContactPanel({ dark, isMobile, setMobileView, focusRef }
           </div>
           <button
             className="btn btn-success w-100"
+            disabled={!addContactName}
             onClick={handleCreateContact}
           >
             Add to Contacts <SendRounded />

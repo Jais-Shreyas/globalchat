@@ -40,6 +40,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
 
   useEffect(() => {
     if (!wsRef.current) return;
+    if (!user) return;
     wsRef.current.onmessage = (event: MessageEvent) => {
       const data = JSON.parse(event.data);
       if (data.type === 'NEW_MESSAGE') {
@@ -77,14 +78,17 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
           showAlert({ type: 'success', message: `New contact "${contact.name}" added!` });
           setActiveContact(contact);
         }
-        setContacts((prevContacts) => [contact, ...prevContacts]);
+        setContacts((prevContacts) => {
+          const filteredContacts = prevContacts.filter((existingContact) => existingContact.conversationId !== contact.conversationId);
+          return [contact, ...filteredContacts];
+        });
       } else if (data.type === 'ERROR') {
         showAlert({ type: 'danger', message: data.message });
       } else {
         console.log("Unknown message type:", data);
       }
     };
-  }, [wsRef.current, activeContact]);
+  }, [activeContact, user]);
 
   return (
     <MessagesContext.Provider value={{ messages, setMessages }}>

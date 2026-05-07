@@ -27,9 +27,10 @@ router.post('/googlelogin', async (req, res) => {
       await newUser.save();
 
       // add this new user to global conversation
-      let globalConv = await Conversation.findOne({ type: 'global' });
-      globalConv.participants.push(newUser._id);
-      await globalConv.save();
+      await Conversation.updateOne(
+        { type: 'global' },
+        { $addToSet: { participants: newUser._id } }
+      );
 
       userFound = newUser;
     }
@@ -140,9 +141,10 @@ router.post('/signup', async (req, res) => {
     await user.save();
 
     // add this new user to global conversation
-    let globalConv = await Conversation.findOne({ type: 'global' });
-    globalConv.participants.push(user._id);
-    await globalConv.save();
+    await Conversation.updateOne(
+      { type: 'global' },
+      { $addToSet: { participants: user._id } }
+    );
     
     await handleUserDataSend(res, user);
 

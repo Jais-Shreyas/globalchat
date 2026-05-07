@@ -18,8 +18,9 @@ export const ContactProvider = ({ children }: { children: React.ReactNode }) => 
   const { showAlert } = useAlert();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [activeContact, setActiveContact] = useState<Contact | null>(null);
-
   useEffect(() => {
+    if (!user) return;
+    
     const fetchContacts = async () => {
       try {
         const data = await apiFetch('/contacts');
@@ -29,13 +30,14 @@ export const ContactProvider = ({ children }: { children: React.ReactNode }) => 
           return dateB - dateA;
         });
         setContacts(sortedData);
+        setActiveContact(null);
       } catch (error: any) {
         console.error('Error fetching contacts:', error);
         showAlert({ type: 'danger', message: error.message || 'Could not fetch contacts' });
       }
     }
     fetchContacts();
-  }, []);
+  }, [user?._id]);
 
   return (
     <ContactContext.Provider value={{ contacts, setContacts, activeContact, setActiveContact }}>
