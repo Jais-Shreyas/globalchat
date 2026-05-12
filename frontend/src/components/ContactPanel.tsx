@@ -72,6 +72,8 @@ export default function ContactPanel({ dark, isMobile, setMobileView, focusRef }
     if (alert.type === 'success') {
       setGroupContactUsers([]);
       setIsCreatingGroup(false);
+      setGroupName('');
+      setSearchContact('');
     }
     showAlert(alert);
   }

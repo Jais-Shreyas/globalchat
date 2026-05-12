@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiFetch } from "../helpers/fetchHelper";
 import { GroupData } from "../types/GroupData";
-import { AddModerator, ArrowBack, Cancel, Close, Edit, Info, PersonAdd, PersonAddAlt1Outlined, PersonAddDisabled, PersonAddOutlined, PersonRemoveOutlined, RemoveModerator, SaveOutlined, Shield } from "@mui/icons-material";
+import { AddModerator, ArrowBack, Cancel, Close, Edit, Image, Info, PersonAdd, PersonAddAlt1Outlined, PersonAddDisabled, PersonAddOutlined, PersonRemoveOutlined, RemoveModerator, SaveOutlined, Shield } from "@mui/icons-material";
 import { PublicUser } from "../types/user";
 import { useAuth } from "../contexts/AuthContext";
 import { useAlert } from "../contexts/AlertContext";
+import { getOptimizedImageUrl, uploadImage } from "../helpers/fileUpload";
 
 export default function GroupProfile() {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ export default function GroupProfile() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [myContacts, setMyContacts] = useState<PublicUser[]>([]);
   const [isAddingContacts, setIsAddingContacts] = useState<boolean>(false);
+  const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchConversationData = async () => {
@@ -27,11 +29,12 @@ export default function GroupProfile() {
         const groupData: GroupData = {
           type: group.type,
           name: group.name,
-          photoURL: group.photoURL,
+          photoURL: group.photoURL || null,
           memberList: group.participants,
           admins: group.admins,
-          _id: group._id
+          _id: group._id  
         };
+        console.log("Fetched group data: ", groupData);
 
         groupData.memberList?.sort((a, b) => {
           if (a._id === user?._id) return -1;
@@ -82,6 +85,29 @@ export default function GroupProfile() {
     }
     return { valid: true };
   }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    console.log("Selected file for upload: ", file);
+    if (!file) return;
+    try {
+      setIsUploadingImage(true);
+      const data = await uploadImage(file);
+      console.log("Image uploaded successfully: ", data);
+      setGroupData(prev => ({ ...prev, photoURL: { url: getOptimizedImageUrl(data.url, 120, 120), publicId: data.publicId } }));
+    } catch (err) {
+      console.error(err);
+      showAlert({
+        type: "danger",
+        message: "Image upload failed",
+      });
+
+    } finally {
+      setIsUploadingImage(false);
+    }
+  }
+
+
   const handleGroupUpdate = async () => {
     const validation = validateGroupUpdate();
     if (!validation.valid) {
@@ -95,7 +121,7 @@ export default function GroupProfile() {
     }
     payload.memberList = groupData.memberList;
     payload.admins = groupData.admins;
-    if (groupData.photoURL !== originalData.photoURL) {
+    if (groupData.photoURL?.url !== originalData.photoURL?.url) {
       payload.photoURL = groupData.photoURL;
     }
     if (Object.keys(payload).length === 0) {
@@ -193,7 +219,7 @@ export default function GroupProfile() {
                           onClick={() => {
                             handleGroupUpdate();
                           }}
-                          disabled={isSubmitting}
+                          disabled={isSubmitting || isUploadingImage}
                           title="Save Changes"
                         ><SaveOutlined /></button>
                         <button type="button"
@@ -219,24 +245,82 @@ export default function GroupProfile() {
                 }
               </div>
               <div className="text-center">
-                <img
-                  src={originalData?.photoURL || (originalData?.type === 'global' ? '/GlobalChatDP.png' : '/defaultGroupDP.png')}
-                  alt={originalData?.name || 'Group'}
-                  className="img-fluid mt-2"
-                  style={{
-                    width: '150px',
-                    height: '150px',
-                    borderRadius: '50%',
-                    objectFit: 'cover'
-                  }}
-                  onError={(e) => {
-                    if (originalData?.type === 'global') {
-                      e.currentTarget.src = "/GlobalChatDP.png";
-                    } else {
-                      e.currentTarget.src = "/defaultGroupDP.png";
-                    }
-                  }}
-                />
+                <div className="flex-shrink-0"
+                  style={{ position: "relative", display: "inline-block" }}
+                >
+                  <img
+                    src={groupData?.photoURL?.url || (originalData?.type === 'global' ? '/GlobalChatDP.png' : '/defaultGroupDP.png')}
+                    alt={originalData?.name || 'Group'}
+                    className="img-fluid mt-2"
+                    style={{
+                      width: '150px',
+                      height: '150px',
+                      borderRadius: '50%',
+                      objectFit: 'cover'
+                    }}
+                    onError={(e) => {
+                      if (originalData?.type === 'global') {
+                        e.currentTarget.src = "/GlobalChatDP.png";
+                      } else {
+                        e.currentTarget.src = "/defaultGroupDP.png";
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    hidden={!isEditing || originalData?.type === 'global' || !groupData.photoURL}
+                    aria-label="Remove profile image"
+                    onClick={() => {
+                      setGroupData({
+                        ...groupData,
+                        photoURL: null,
+                      })
+                    }}
+                    style={{
+                      position: "absolute",
+                      top: "0",
+                      right: "0",
+                      width: "24px",
+                      height: "24px",
+                      border: "none",
+                      borderRadius: "50%",
+                      background: "rgba(0,0,0,0.8)",
+                      color: "white",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "14px",
+                      lineHeight: 1,
+                    }}
+                  >
+                    ×
+                  </button>
+                  <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                  }}>
+                    <label className="upload-btn"
+                    hidden={!isEditing || originalData?.type === 'global' || isUploadingImage || groupData.photoURL ? true : false}
+                      tabIndex={0}
+                      style={{ border: "none" }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.currentTarget.querySelector("input")?.click();
+                        }
+                      }}>
+                      <input
+                        type="file"
+                        hidden
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                      />
+                      <span style={{ fontSize: '4rem' }}>+</span>
+                    </label>
+                  </div>
+                </div>
                 {isEditing ? (
                   <div className="mt-1 d-flex justify-content-center">
                     <input
@@ -331,7 +415,7 @@ export default function GroupProfile() {
                                 {isSelf ? '(You)' : member.name}
 
                               </h6>
-                              <div className="text-muted text-truncate" style={{ fontSize: '0.9rem'}}>
+                              <div className="text-muted text-truncate" style={{ fontSize: '0.9rem' }}>
                                 @{member.username}
                               </div>
                             </div>

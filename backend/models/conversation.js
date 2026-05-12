@@ -24,7 +24,11 @@ const conversationSchema = new Schema(
       ref: 'Message'
     },
     photoURL: {
-      type: String
+      type: {
+        url: String,
+        publicId: String,
+      },
+      default: null
     }
   },
   {

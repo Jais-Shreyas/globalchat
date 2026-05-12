@@ -16,7 +16,7 @@ router.get('/contacts', authenticate, async (req, res) => {
         select: 'message sender createdAt updatedAt deletedAt',
         populate: { path: 'sender', select: 'username name' }
       })
-      .select('type name participants');
+      .select('type name photoURL participants');
     const userContacts = conversations.map(conv => {
       let contactInfo;
       if (conv.type === 'global') {

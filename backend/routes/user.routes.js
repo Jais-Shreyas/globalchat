@@ -78,11 +78,8 @@ router.patch('/profile', authenticate, async (req, res) => {
         }
       }
     }
-    if (user.photoURL && user.photoURL.publicId !== photoURL?.publicId) {
-      if (user.photoURL?.publicId) {
-        console.log('Deleting old profile picture with public ID:', user.photoURL.publicId);
-        await cloudinary.uploader.destroy(user.photoURL.publicId);
-      }
+    if (user.photoURL?.publicId && user.photoURL.publicId !== photoURL?.publicId) {
+      await cloudinary.uploader.destroy(user.photoURL.publicId);
     }
     if ("photoURL" in req.body) user.photoURL = photoURL;
     if (username) user.username = nUsername;
@@ -172,7 +169,8 @@ router.post('/group/:groupId/leave', authenticate, async (req, res) => {
 router.patch('/group/:conversationId', authenticate, async (req, res) => {
   try {
     const { conversationId } = req.params;
-    const { name, admins, memberList, photoURL } = req.body;
+    const { name, photoURL, admins, memberList } = req.body;
+    console.log('Received group update request with data:', { name, photoURL, admins, memberList });
 
     const conversation = await Conversation.findById(conversationId)
       .populate('participants')
@@ -199,9 +197,12 @@ router.patch('/group/:conversationId', authenticate, async (req, res) => {
       memberIds.has(admin._id)
     );
 
+    if (conversation.photoURL?.publicId && conversation.photoURL.publicId !== photoURL?.publicId) {
+      await cloudinary.uploader.destroy(conversation.photoURL.publicId);
+    }
 
+    if ("photoURL" in req.body) conversation.photoURL = photoURL;
     if (name) conversation.name = name;
-    if (photoURL) conversation.photoURL = photoURL;
     conversation.participants = [...memberIds];
     conversation.admins = newAdminList;
     await conversation.save();
