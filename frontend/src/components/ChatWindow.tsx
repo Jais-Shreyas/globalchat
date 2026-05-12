@@ -276,7 +276,7 @@ export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: 
                     </ul>
                   </div>
                 }
-                <div key={msg._id} style={{...style, maxWidth: msg.image ? '520px' : '70%'}} className={`${msg.username === user!.username ? 'user' : 'notuser'} ${dark ? 'bg-light text-dark' : 'bg-dark text-light'} mt-0`}>
+                <div key={msg._id} style={{...style, maxWidth: msg.image ? 'min(70%, 520px)' : '70%'}} className={`${msg.username === user!.username ? 'user' : 'notuser'} ${dark ? 'bg-light text-dark' : 'bg-dark text-light'} mt-0`}>
                   {activeContact?.type !== 'private' &&
                     <Link to={`/profile/${msg.username}`} style={{ textDecoration: 'none', color: 'grey', textAlign: msg.username !== user!.username ? 'left' : 'left', display: 'block' }}>
                       <div
