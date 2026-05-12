@@ -6,6 +6,7 @@ import { apiFetch } from '../helpers/fetchHelper';
 import { ArrowBack, Image, Person } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useAlert } from '../contexts/AlertContext';
+import { getOptimizedImageUrl, uploadImage } from '../helpers/fileUpload';
 
 export default function Profile() {
   const { username } = useParams<{ username: string }>();
@@ -19,6 +20,7 @@ export default function Profile() {
   const [originalData, setOriginalData] = useState<PrivateUser>({ name: "---", username: "---", email: "", _id: "", photoURL: null });
   const [isEditing, toggleEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -61,6 +63,24 @@ export default function Profile() {
     }
     return { valid: true };
   }
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return;
+    try {
+      setIsUploadingImage(true);
+      const data = await uploadImage(file);
+      setUserData(prev => ({ ...prev, photoURL: { url: getOptimizedImageUrl(data.url, 120, 120), publicId: data.publicId } }));
+    } catch (err) {
+      console.error(err);
+      showAlert({
+        type: "danger",
+        message: "Image upload failed",
+      });
+
+    } finally {
+      setIsUploadingImage(false);
+    }
+  }
 
   const handleSubmit = async () => {
     const validation = validateProfileUpdate();
@@ -75,7 +95,7 @@ export default function Profile() {
     if (userData.username !== originalData.username) {
       payload.username = userData.username;
     }
-    if (userData.photoURL !== originalData.photoURL) {
+    if (userData.photoURL?.url !== originalData.photoURL?.url) {
       payload.photoURL = userData.photoURL;
     }
     if (Object.keys(payload).length === 0) {
@@ -122,9 +142,11 @@ export default function Profile() {
             <div className="card-body p-4">
               <button className="btn text-dark" onClick={navigateBack} title='Back'><ArrowBack /></button>
               <div className="d-flex w-100 justify-content-center tex-center mx-1 mb-4 mt-2">
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0"
+                  style={{ position: "relative", display: "inline-block" }}
+                >
                   <img
-                   src={originalData.photoURL || "/defaultDP.jpg"}
+                    src={userData.photoURL?.url || "/defaultDP.jpg"}
                     alt="Profile URL" className="img-fluid" style={{
                       border: '1px solid grey',
                       width: '8rem',
@@ -136,6 +158,38 @@ export default function Profile() {
                       e.currentTarget.src = "/defaultDP.jpg";
                     }}
                   />
+
+                  {originalData.photoURL && isEditing && (
+                    <button
+                      type="button"
+                      aria-label="Remove profile image"
+                      onClick={() => {
+                        setUserData({
+                          ...userData,
+                          photoURL: null,
+                        })
+                      }}
+                      style={{
+                        position: "absolute",
+                        top: "0",
+                        right: "0",
+                        width: "24px",
+                        height: "24px",
+                        border: "none",
+                        borderRadius: "50%",
+                        background: "rgba(0,0,0,0.8)",
+                        color: "white",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "14px",
+                        lineHeight: 1,
+                      }}
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
                 <div className="ms-3 text-truncate">
                   {isEditing ? (
@@ -146,11 +200,11 @@ export default function Profile() {
                       </div>
                       <div className="input-group mb-1">
                         <span className="input-group-text" id="basic-addon1"><Person /></span>
-                        <input autoFocus value={userData.username} onChange={handleCredUpdate} type="text" name="username" className="form-control" placeholder="Username" aria-label="username" aria-describedby="username" />
+                        <input value={userData.username} onChange={handleCredUpdate} type="text" name="username" className="form-control" placeholder="Username" aria-label="username" aria-describedby="username" />
                       </div>
                       <div className="input-group mb-1">
                         <span className="input-group-text" id="basic-addon1"><Image /></span>
-                        <input autoFocus value={userData.photoURL ?? ''} onChange={handleCredUpdate} type="text" name="photoURL" className="form-control" placeholder="Link to the DP image" aria-label="photoURL" aria-describedby="photoURL" />
+                        <input onChange={handleImageUpload} type="file" accept="image/*" name="photoURL" className="form-control" placeholder="Link to the DP image" aria-label="photoURL" aria-describedby="photoURL" />
                       </div>
                     </div>
                   ) : (
@@ -170,7 +224,11 @@ export default function Profile() {
                           className="btn btn-danger me-1 flex-grow-1"
                           onClick={handleCancel}
                         >Cancel</button>
-                        <button className="btn btn-success flex-grow-1" disabled={isSubmitting} onClick={handleSubmit}>Save</button>
+                        <button
+                          className="btn btn-success flex-grow-1"
+                          disabled={isSubmitting || isUploadingImage}
+                          onClick={handleSubmit}
+                        >Save</button>
                       </div>
                     </div>
                   }

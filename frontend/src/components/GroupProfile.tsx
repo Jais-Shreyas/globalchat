@@ -281,7 +281,7 @@ export default function GroupProfile() {
                           }
                         }}
                       >
-                        <img src={member.photoURL || '/defaultDP.jpg'}
+                        <img src={member.photoURL?.url || '/defaultDP.jpg'}
                           alt="Member profile photo"
                           style={{
                             height: '40px',
@@ -389,7 +389,7 @@ export default function GroupProfile() {
                           const isAdded = isGettingAdded(contact);
                           return (
                             <div key={contact._id} className="col-md-6 col-xxl-4 d-flex align-items-center px-1 border-bottom border-start rounded shadow-sm py-1 mb-1">
-                              <img src={contact.photoURL || '/defaultDP.jpg'}
+                              <img src={contact.photoURL?.url || '/defaultDP.jpg'}
                                 alt="Contact profile photo"
                                 style={{
                                   height: '40px',

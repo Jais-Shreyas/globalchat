@@ -278,7 +278,7 @@ export default function ContactPanel({ dark, isMobile, setMobileView, focusRef }
                 <Link to={contact.type === 'private' ? `/profile/${contact.username}` : `/conversation/${contact.conversationId}`}
                   className="d-flex">
                   <img
-                    src={contact.photoURL || (contact.type === 'global' ? '/GlobalChatDP.png' : contact.type === 'group' ? '/defaultGroupDP.png' : '/defaultDP.jpg')}
+                    src={contact.photoURL?.url || (contact.type === 'global' ? '/GlobalChatDP.png' : contact.type === 'group' ? '/defaultGroupDP.png' : '/defaultDP.jpg')}
                     alt={contact.name}
                     style={{
                       width: '50px',

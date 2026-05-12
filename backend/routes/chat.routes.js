@@ -165,10 +165,11 @@ router.get('/chats/:conversationId', authenticate, async (req, res) => {
   try {
     const chats = await Message.find({ conversation: conversationId })
       .populate('sender', 'username name')
-      .select('message createdAt editedAt deletedAt');
+      .select('message image createdAt editedAt deletedAt');
     const formatted = chats.map(chat => ({
       _id: chat._id,
       message: chat.message,
+      image: chat.image,
       username: chat.sender.username,
       userId: chat.sender._id,
       name: chat.sender.name,
@@ -176,7 +177,6 @@ router.get('/chats/:conversationId', authenticate, async (req, res) => {
       editedAt: chat.editedAt,
       deletedAt: chat.deletedAt
     }));
-
     res.status(200).json(formatted);
   } catch (err) {
     console.error(err);

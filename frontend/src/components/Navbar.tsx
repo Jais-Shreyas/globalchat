@@ -86,7 +86,7 @@ export default function Navbar({ page = 'home' }: NavbarProps) {
                     <Link onClick={closeNavbar} className={`nav-link ${page === 'home' ? 'active' : ''}`} to={`/profile/${user.username}`}>
                       {user.name}&nbsp;
                       <img
-                        src={user.photoURL || "/defaultDP.jpg"}
+                        src={user.photoURL?.url || "/defaultDP.jpg"}
                         alt="defaultDP"
                         style={{
                           margin: 'auto',

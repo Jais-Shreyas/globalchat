@@ -1,0 +1,17 @@
+.upload-btn {
+  width: 48px;
+  border: 1px solid white;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 32px;
+  color: #666;
+  transition: 0.2s;
+  line-height: 1;
+}
+
+.upload-btn:hover {
+  color: #ffffff;
+}

@@ -1,5 +1,9 @@
 export type Message = {
   message: string;
+  image: {
+    url: string;
+    publicId: string;
+  } | null;
   username: string;
   userId: string;
   name: string;

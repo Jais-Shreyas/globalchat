@@ -36,8 +36,7 @@ export const handleWSConnection = (ws, req) => {
     }
 
     if (data.type === 'NEW_MESSAGE') {
-      const { message, conversationId } = data;
-
+      const { message, image, conversationId } = data;
       const conversation = await Conversation.findById(conversationId).select('participants');
       if (!conversation) {
         return ws.send(JSON.stringify({ type: "ERROR", message: "Conversation not found" }));
@@ -48,7 +47,7 @@ export const handleWSConnection = (ws, req) => {
         return ws.send(JSON.stringify({ type: "ERROR", message: "Unauthorized to send message in this conversation" }));
       }
       try {
-        const insertedMessage = await insertMessage(message, ws.userId, conversationId);
+        const insertedMessage = await insertMessage(message, image, ws.userId, conversationId);
         emitToUsers(participantIds, {
           type: 'NEW_MESSAGE',
           ...insertedMessage,
@@ -63,7 +62,7 @@ export const handleWSConnection = (ws, req) => {
         ws.send(JSON.stringify({ type: "ERROR", message: err.message }));
       }
     } else if (data.type === 'UPDATE_MESSAGE') {
-      const { message, messageId, conversationId } = data;
+      const { message, image, messageId, conversationId } = data;
 
       const conversation = await Conversation.findById(conversationId).select('participants');
       if (!conversation) {
@@ -76,11 +75,12 @@ export const handleWSConnection = (ws, req) => {
       }
 
       try {
-        const updatedMessage = await updateMessage(message, messageId, ws.userId)
+        const updatedMessage = await updateMessage(message, image, messageId, ws.userId)
         emitToUsers(participantIds, {
           type: 'UPDATE_MESSAGE',
           messageId: updatedMessage._id,
           message: updatedMessage.message,
+          image: updatedMessage.image,
           editedAt: updatedMessage.editedAt,
           conversationId
         });
@@ -105,6 +105,7 @@ export const handleWSConnection = (ws, req) => {
           messageId: deletedMessage._id,
           conversationId,
           message: deletedMessage.message,
+          image: deletedMessage.image,
           deletedAt: deletedMessage.deletedAt
         });
       } catch (err) {

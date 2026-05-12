@@ -2,6 +2,7 @@ import express from 'express';
 import User from '../models/user.js'
 import { authenticate } from '../middleware/authenticate.js'
 import Conversation from '../models/conversation.js';
+import cloudinary from '../config/cloudinary.js';
 
 const router = express.Router();
 const normalise = (str) => str?.trim().toLowerCase();
@@ -77,8 +78,13 @@ router.patch('/profile', authenticate, async (req, res) => {
         }
       }
     }
-
-    if (photoURL) user.photoURL = photoURL;
+    if (user.photoURL && user.photoURL.publicId !== photoURL?.publicId) {
+      if (user.photoURL?.publicId) {
+        console.log('Deleting old profile picture with public ID:', user.photoURL.publicId);
+        await cloudinary.uploader.destroy(user.photoURL.publicId);
+      }
+    }
+    if ("photoURL" in req.body) user.photoURL = photoURL;
     if (username) user.username = nUsername;
     if (name) user.name = name;
     if (email) user.email = nEmail;

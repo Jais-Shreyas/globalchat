@@ -2,7 +2,10 @@ export type PublicUser = {
   _id: string;
   username: string;
   name: string;
-  photoURL: string | null;
+  photoURL: {
+    url: string;
+    publicId: string;
+  } | null;
 };
 
 export type PrivateUser = PublicUser & {

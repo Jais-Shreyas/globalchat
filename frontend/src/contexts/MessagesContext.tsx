@@ -44,7 +44,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
     wsRef.current.onmessage = (event: MessageEvent) => {
       const data = JSON.parse(event.data);
       if (data.type === 'NEW_MESSAGE') {
-        const { message, username, name, createdAt, deletedAt, messageId, conversationId } = data;
+        const { message, image, username, name, createdAt, deletedAt, messageId, conversationId } = data;
         setContacts((prevContacts) => {
           const updatedContacts = prevContacts.map(contact => {
             if (contact.conversationId === conversationId) {
@@ -60,12 +60,14 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
           return updatedContacts;
         });
         if (activeContact && conversationId === activeContact.conversationId) {
-          setMessages((prevMessages) => [...prevMessages, { message, username, name, createdAt, editedAt: null, deletedAt: null, _id: messageId, userId: data.userId }]);
+          console.log("Received NEW_MESSAGE for active conversation:", data);
+          setMessages((prevMessages) => [...prevMessages, { message, image, username, name, createdAt, editedAt: null, deletedAt: null, _id: messageId, userId: data.userId }]);
         }
       } else if (data.type === 'UPDATE_MESSAGE') {
-        const { message, messageId, editedAt } = data;
+        const { message, image, messageId, editedAt } = data;
+        console.log("Received UPDATE_MESSAGE for messageId:", messageId, data);
         if (activeContact && data.conversationId === activeContact.conversationId) {
-          setMessages((prevMessages) => prevMessages.map(msg => msg._id === messageId ? { ...msg, message, editedAt } : msg));
+          setMessages((prevMessages) => prevMessages.map(msg => msg._id === messageId ? { ...msg, message, image, editedAt } : msg));
         }
       } else if (data.type === 'DELETE_MESSAGE') {
         const { messageId, conversationId, message, deletedAt } = data;

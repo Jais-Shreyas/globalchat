@@ -40,7 +40,11 @@ const UserSchema = new Schema(
       }
     },
     photoURL: {
-      type: String
+      type: {
+        url: String,
+        publicId: String,
+      },
+      default: null
     },
     darkMode: {
       type: Boolean,

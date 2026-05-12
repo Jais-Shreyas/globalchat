@@ -14,6 +14,7 @@ import { useContacts } from "../contexts/ContactContext";
 import { useWebSocket } from "../contexts/WebSocketContext";
 import { useMessages } from "../contexts/MessagesContext";
 import { useAlert } from "../contexts/AlertContext";
+import { set } from "mongoose";
 
 type ChatWindowProps = {
   dark: boolean;
@@ -40,6 +41,7 @@ export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: 
     setScroll(!scroll);
   }
 
+  console.log('Rendering ChatWindow with messages:', messages[messages.length - 1]);
   useEffect(() => {
     if (scroll) {
       scrollToBottom()
@@ -52,14 +54,16 @@ export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: 
   }, [activeContact]);
 
   const [inputMessage, setInputMessage] = useState<{ msg: string, _id: string | null }>({ msg: '', _id: null });
+  const [image, setImage] = useState<{ url: string, publicId: string } | null>(null);
   const sendMessage = () => {
     try {
       if (!inputMessage._id) {
-        wsRef.current?.send(JSON.stringify({ type: 'NEW_MESSAGE', message: inputMessage.msg.trim(), conversationId: activeContact?.conversationId }));
+        wsRef.current?.send(JSON.stringify({ type: 'NEW_MESSAGE', message: inputMessage.msg.trim(), image, conversationId: activeContact?.conversationId }));
       } else {
-        wsRef.current?.send(JSON.stringify({ type: 'UPDATE_MESSAGE', message: inputMessage.msg.trim(), messageId: inputMessage._id, conversationId: activeContact?.conversationId }));
+        wsRef.current?.send(JSON.stringify({ type: 'UPDATE_MESSAGE', message: inputMessage.msg.trim(), image, messageId: inputMessage._id, conversationId: activeContact?.conversationId }));
       }
       setInputMessage({ msg: '', _id: null });
+      setImage(null);
     } catch (e) {
       console.error(e);
       showAlert({ type: 'danger', message: 'Could not send message' });
@@ -169,7 +173,7 @@ export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: 
             >
               <img
                 className="align-self-center mx-2 my-1"
-                src={activeContact.photoURL || (activeContact.type === 'private' ? "/defaultDP.jpg" : "/defaultGroupDP.png")}
+                src={activeContact.photoURL?.url || (activeContact.type === 'private' ? "/defaultDP.jpg" : "/defaultGroupDP.png")}
                 alt={activeContact.name}
                 style={{ width: '2rem', height: '2rem', borderRadius: '50%', objectFit: 'cover', marginRight: '1rem' }}
                 onError={(e) => {
@@ -230,7 +234,6 @@ export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: 
             const style = msg.username === user!.username ? {
               whiteSpace: 'pre-wrap',
               margin: '0.5rem 0 0.5rem 0',
-              maxWidth: '70%',
               width: 'fit-content',
               display: 'inline-block',
               padding: '0.3rem 1rem 0.5em 1rem',
@@ -238,7 +241,6 @@ export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: 
             } : {
               whiteSpace: 'pre-wrap',
               margin: '0.5rem auto 0.5rem 0',
-              maxWidth: '70%',
               width: 'fit-content',
               display: 'inline-block',
               padding: '0.3rem 1rem 0.5em 1rem',
@@ -257,6 +259,7 @@ export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: 
                         style={{ minWidth: '6rem' }}
                         onClick={() => {
                           setInputMessage({ msg: msg.message, _id: msg._id });
+                          setImage(msg.image || null);
                           focusRef?.current?.focus()
                         }}
                       >
@@ -275,7 +278,7 @@ export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: 
                     </ul>
                   </div>
                 }
-                <div key={msg._id} style={style} className={`${msg.username === user!.username ? 'user' : 'notuser'} ${dark ? 'bg-light text-dark' : 'bg-dark text-light'} mt-0`}>
+                <div key={msg._id} style={{...style, maxWidth: msg.image ? '520px' : '70%'}} className={`${msg.username === user!.username ? 'user' : 'notuser'} ${dark ? 'bg-light text-dark' : 'bg-dark text-light'} mt-0`}>
                   {activeContact?.type !== 'private' &&
                     <Link to={`/profile/${msg.username}`} style={{ textDecoration: 'none', color: 'grey', textAlign: msg.username !== user!.username ? 'left' : 'left', display: 'block' }}>
                       <div
@@ -293,7 +296,15 @@ export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: 
                     overflowWrap: 'anywhere',
                     fontFamily: 'inherit',
                     color: msg.deletedAt ? 'grey' : (dark ? 'black' : 'white'),
+                    paddingBottom: msg.image && !msg.message ? '1.5rem' : '0.5rem',
                   }}>
+                    {msg.image &&
+                      <img
+                        src={msg.image.url}
+                        alt="sent image"
+                        style={{ maxWidth: '480px', borderRadius: '0.5rem', marginTop: '0.5rem', marginBottom: msg.message ? '0.5rem' : '0' }}
+                      />
+                    }
                     <Markdown children={(msg.message)} />
                   </div>
                   <small
@@ -315,7 +326,7 @@ export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: 
           <div key='endref' ref={messagesEndRef} />
         </div >
       </div>
-      <Input dark={dark} isMobile={isMobile} focusRef={focusRef} inputMessage={inputMessage} setInputMessage={setInputMessage} sendMessage={sendMessage} setInputHeight={setInputHeight} />
+      <Input dark={dark} isMobile={isMobile} focusRef={focusRef} inputMessage={inputMessage} setInputMessage={setInputMessage} sendMessage={sendMessage} image={image} setImage={setImage} setInputHeight={setInputHeight} />
     </>
   )
 }

@@ -22,7 +22,7 @@ router.post('/googlelogin', async (req, res) => {
         email,
         username,
         googleId: uid,
-        photoURL: photoURL
+        photoURL: { url: photoURL, publicId: null }
       });
       await newUser.save();
 
@@ -37,10 +37,6 @@ router.post('/googlelogin', async (req, res) => {
     let modified = false;
     if (userFound.email !== email) {
       userFound.email = email;
-      modified = true;
-    }
-    if (userFound.photoURL !== photoURL) {
-      userFound.photoURL = photoURL;
       modified = true;
     }
     if (modified) {
