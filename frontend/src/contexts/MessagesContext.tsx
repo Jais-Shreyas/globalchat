@@ -60,12 +60,10 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
           return updatedContacts;
         });
         if (activeContact && conversationId === activeContact.conversationId) {
-          console.log("Received NEW_MESSAGE for active conversation:", data);
           setMessages((prevMessages) => [...prevMessages, { message, image, username, name, createdAt, editedAt: null, deletedAt: null, _id: messageId, userId: data.userId }]);
         }
       } else if (data.type === 'UPDATE_MESSAGE') {
         const { message, image, messageId, editedAt } = data;
-        console.log("Received UPDATE_MESSAGE for messageId:", messageId, data);
         if (activeContact && data.conversationId === activeContact.conversationId) {
           setMessages((prevMessages) => prevMessages.map(msg => msg._id === messageId ? { ...msg, message, image, editedAt } : msg));
         }

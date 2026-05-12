@@ -14,7 +14,6 @@ import { useContacts } from "../contexts/ContactContext";
 import { useWebSocket } from "../contexts/WebSocketContext";
 import { useMessages } from "../contexts/MessagesContext";
 import { useAlert } from "../contexts/AlertContext";
-import { set } from "mongoose";
 
 type ChatWindowProps = {
   dark: boolean;
@@ -41,7 +40,6 @@ export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: 
     setScroll(!scroll);
   }
 
-  console.log('Rendering ChatWindow with messages:', messages[messages.length - 1]);
   useEffect(() => {
     if (scroll) {
       scrollToBottom()
