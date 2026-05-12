@@ -300,7 +300,7 @@ export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: 
                       <img
                         src={msg.image.url}
                         alt="sent image"
-                        style={{ maxWidth: '480px', borderRadius: '0.5rem', marginTop: '0.5rem', marginBottom: msg.message ? '0.5rem' : '0' }}
+                        style={{ maxWidth: 'min(480px, 70%)', borderRadius: '0.5rem', marginTop: '0.5rem', marginBottom: msg.message ? '0.5rem' : '0' }}
                       />
                     }
                     <Markdown children={(msg.message)} />
