@@ -7,6 +7,8 @@ import { useAlert } from '../contexts/AlertContext';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import { useTheme } from '../contexts/ThemeContext';
 import '../styles/Navbar.css';
+import { useEffect, useState } from 'react';
+import { getFileURL } from '../helpers/fetchHelper';
 
 type NavbarProps = {
   page?: 'home' | 'about' | 'login' | 'signup' | 'profile';
@@ -18,7 +20,7 @@ export default function Navbar({ page = 'home' }: NavbarProps) {
   const { dark, changeMode } = useTheme();
   const { user, setUser } = useAuth();
   const { closeWS } = useWebSocket();
-
+  const [photoURL, setPhotoURL] = useState<string | null>(null);
   const logout = async () => {
     closeWS();
     localStorage.removeItem('globalchat-authToken');
@@ -39,6 +41,15 @@ export default function Navbar({ page = 'home' }: NavbarProps) {
       bsCollapse.hide();
     }
   };
+
+  useEffect(() => {
+    const getPhoto = async () => {
+      if (!user?.photo?.fileId) return;
+      const url = await getFileURL(user?.photo?.fileId);
+      setPhotoURL(url);
+    }
+    getPhoto();
+  }, [user]);
 
 
   return (
@@ -86,7 +97,7 @@ export default function Navbar({ page = 'home' }: NavbarProps) {
                     <Link onClick={closeNavbar} className={`nav-link ${page === 'home' ? 'active' : ''}`} to={`/profile/${user.username}`}>
                       {user.name}&nbsp;
                       <img
-                        src={user.photoURL?.url || "/defaultDP.jpg"}
+                        src={photoURL || "/defaultDP.jpg"}
                         alt="defaultDP"
                         style={{
                           margin: 'auto',

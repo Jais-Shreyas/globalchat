@@ -3,9 +3,12 @@ import { PublicUser } from "./user";
 export type GroupData = {
   name: string;
   type: 'group' | 'global';
-  photoURL: {
-    url: string;
-    publicId: string;
+  photo: {
+    fileId: string;
+    uploadId?: string;
+    name: string;
+    mimeType: string;
+    size: number;
   } | null;
   memberList?: PublicUser[];
   admins?: PublicUser[];

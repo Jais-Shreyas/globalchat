@@ -2,14 +2,13 @@ import express from 'express';
 import User from '../models/user.js'
 import { authenticate } from '../middleware/authenticate.js'
 import Conversation from '../models/conversation.js';
-import cloudinary from '../config/cloudinary.js';
 
 const router = express.Router();
 const normalise = (str) => str?.trim().toLowerCase();
 
 router.get('/me', authenticate, async (req, res) => {
   const user = await User.findById(req._id).select(
-    '_id username name email photoURL'
+    '_id username name email photo'
   );
 
   if (!user) {
@@ -24,7 +23,7 @@ router.get('/profile/:username', authenticate, async (req, res) => {
     const { username } = req.params;
     const nUsername = normalise(username);
     const user = await User.findOne({ username: nUsername }).select(
-      'name username email photoURL'
+      'name username email photo'
     );
 
     if (!user) {
@@ -51,7 +50,7 @@ router.get('/profile/:username', authenticate, async (req, res) => {
 router.patch('/profile', authenticate, async (req, res) => {
   try {
     const id = req._id;
-    const { photoURL, username, name, email } = req.body;
+    const { photo, username, name, email } = req.body;
 
     const nUsername = normalise(username);
     const nEmail = normalise(email);
@@ -78,10 +77,7 @@ router.patch('/profile', authenticate, async (req, res) => {
         }
       }
     }
-    if (user.photoURL?.publicId && user.photoURL.publicId !== photoURL?.publicId) {
-      await cloudinary.uploader.destroy(user.photoURL.publicId);
-    }
-    if ("photoURL" in req.body) user.photoURL = photoURL;
+    if ("photo" in req.body) user.photo = photo;
     if (username) user.username = nUsername;
     if (name) user.name = name;
     if (email) user.email = nEmail;
@@ -94,7 +90,7 @@ router.patch('/profile', authenticate, async (req, res) => {
         username: user.username,
         name: user.name,
         email: user.email,
-        photoURL: user.photoURL
+        photo: user.photo
       }
     });
 
@@ -108,9 +104,9 @@ router.get('/group/:conversationId', authenticate, async (req, res) => {
   try {
     const { conversationId } = req.params;
     const conversation = await Conversation.findById(conversationId)
-      .select('name type photoURL participants admins')
-      .populate('participants', 'username name photoURL')
-      .populate('admins', 'username name photoURL');
+      .select('name type photo participants admins')
+      .populate('participants', 'username name photo')
+      .populate('admins', 'username name photo');
     if (!conversation) {
       return res.status(404).json({
         message: 'Conversation not found'
@@ -169,8 +165,7 @@ router.post('/group/:groupId/leave', authenticate, async (req, res) => {
 router.patch('/group/:conversationId', authenticate, async (req, res) => {
   try {
     const { conversationId } = req.params;
-    const { name, photoURL, admins, memberList } = req.body;
-    console.log('Received group update request with data:', { name, photoURL, admins, memberList });
+    const { name, photo, admins, memberList } = req.body;
 
     const conversation = await Conversation.findById(conversationId)
       .populate('participants')
@@ -197,20 +192,16 @@ router.patch('/group/:conversationId', authenticate, async (req, res) => {
       memberIds.has(admin._id)
     );
 
-    if (conversation.photoURL?.publicId && conversation.photoURL.publicId !== photoURL?.publicId) {
-      await cloudinary.uploader.destroy(conversation.photoURL.publicId);
-    }
-
-    if ("photoURL" in req.body) conversation.photoURL = photoURL;
+    if ("photo" in req.body) conversation.photo = photo;
     if (name) conversation.name = name;
     conversation.participants = [...memberIds];
     conversation.admins = newAdminList;
     await conversation.save();
 
     const convUpdated = await Conversation.findById(conversationId)
-      .select('name type photoURL participants admins')
-      .populate('participants', 'username name photoURL')
-      .populate('admins', 'username name photoURL');
+      .select('name type photo participants admins')
+      .populate('participants', 'username name photo')
+      .populate('admins', 'username name photo');
     res.status(200).json({ group: convUpdated });
 
   } catch (err) {
@@ -226,7 +217,7 @@ router.get('/myContacts', authenticate, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
     const conversations = await Conversation.find({ participants: req._id })
-      .populate('participants', 'username name photoURL')
+      .populate('participants', 'username name photo')
       .select('type name participants');
 
     const userContacts = conversations.map(conv => {
@@ -237,7 +228,7 @@ router.get('/myContacts', authenticate, async (req, res) => {
           _id: otherParticipant._id,
           name: otherParticipant.name,
           username: otherParticipant.username,
-          photoURL: otherParticipant.photoURL,
+          photo: otherParticipant.photo,
         };
       }
       return contactInfo;

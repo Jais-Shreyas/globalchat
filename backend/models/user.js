@@ -39,10 +39,24 @@ const UserSchema = new Schema(
         return this.authType === 'google';
       }
     },
-    photoURL: {
+    photo: {
       type: {
-        url: String,
-        publicId: String,
+        fileId: {
+          type: String,
+          required: true,
+        },
+        name: {
+          type: String,
+          required: true,
+        },
+        mimeType: {
+          type: String,
+          required: true,
+        },
+        size: {
+          type: Number,
+          required: true,
+        },
       },
       default: null
     },

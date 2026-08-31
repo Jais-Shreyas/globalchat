@@ -6,6 +6,7 @@ import { Add, ArrowBack, ArrowForward, GroupAdd, PersonAdd, SendRounded } from "
 import { useAuth } from "../contexts/AuthContext";
 import { useAlert } from "../contexts/AlertContext";
 import { useContacts } from "../contexts/ContactContext";
+import { getFileURL } from "../helpers/fetchHelper";
 
 type ContactPanelProps = {
   dark: boolean;
@@ -29,6 +30,8 @@ export default function ContactPanel({ dark, isMobile, setMobileView, focusRef }
   const [searchContact, setSearchContact] = useState<string>('');
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
 
+  const [conversationPhotoURL, setConversationPhotoURL] = useState<Record<string, string>>({});
+
   const selectContact = (contact: Contact) => {
     setSearchContact('');
     setActiveContact(contact);
@@ -50,6 +53,20 @@ export default function ContactPanel({ dark, isMobile, setMobileView, focusRef }
       setFilteredContacts(filtered);
     }
   }, [searchContact, contacts]);
+
+  useEffect(() => {
+    const getContactPhotos = async () => {
+      for (const contact of contacts) {
+        if (!contact.photo) continue;
+        const url = await getFileURL(contact.photo.fileId);
+        setConversationPhotoURL((prev) => ({
+          ...prev,
+          [contact.photo!.fileId]: url,
+        }))
+      }
+    }
+    getContactPhotos();
+  }, [contacts]);
 
   const handleCreateContact = async () => {
     if (!addContactName) {
@@ -280,7 +297,7 @@ export default function ContactPanel({ dark, isMobile, setMobileView, focusRef }
                 <Link to={contact.type === 'private' ? `/profile/${contact.username}` : `/conversation/${contact.conversationId}`}
                   className="d-flex">
                   <img
-                    src={contact.photoURL?.url || (contact.type === 'global' ? '/GlobalChatDP.png' : contact.type === 'group' ? '/defaultGroupDP.png' : '/defaultDP.jpg')}
+                    src={ (contact.photo?.fileId && conversationPhotoURL[contact.photo?.fileId]) || (contact.type === 'global' ? '/GlobalChatDP.png' : contact.type === 'group' ? '/defaultGroupDP.png' : '/defaultDP.jpg')}
                     alt={contact.name}
                     style={{
                       width: '50px',

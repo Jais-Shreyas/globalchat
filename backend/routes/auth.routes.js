@@ -1,7 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcrypt';
 import User from '../models/user.js'
-import { handleUserDataSend } from '../services/auth.service.js';
+import { handleUserDataSend, importGoogleProfilePhoto } from '../services/auth.service.js';
 import Conversation from '../models/conversation.js';
 
 const router = express.Router();
@@ -16,13 +16,24 @@ router.post('/googlelogin', async (req, res) => {
     let userFound = await User.findOne({ googleId: uid });
     if (!userFound) {
       const username = email.split('@')[0] + Math.floor(Math.random() * 1000 + 1);
+
+      let photo = null;
+
+      if (photoURL) {
+        try {
+          photo = await importGoogleProfilePhoto(photoURL, uid);
+        } catch (error) {
+          console.error("Failed to import Google profile photo:", error);
+        }
+      }
+
       const newUser = new User({
         authType: 'google',
         name: displayName,
         email,
         username,
         googleId: uid,
-        photoURL: { url: photoURL, publicId: null }
+        photo  
       });
       await newUser.save();
 
@@ -54,16 +65,16 @@ router.post('/googlelogin', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     let { password, identifier } = req.body;
-    
+
     if (!identifier || !password) {
       return res.status(400).json({ message: 'Missing credentials' });
     }
-    
+
     identifier = identifier.toLowerCase().trim();
 
     const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const isEmail = EMAIL_REGEX.test(identifier);
-    
+
     const user = isEmail
       ? await User.findOne({ email: identifier })
       : await User.findOne({ username: identifier });
@@ -141,7 +152,7 @@ router.post('/signup', async (req, res) => {
       { type: 'global' },
       { $addToSet: { participants: user._id } }
     );
-    
+
     await handleUserDataSend(res, user);
 
   } catch (err) {

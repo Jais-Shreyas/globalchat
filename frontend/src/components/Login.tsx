@@ -47,8 +47,8 @@ export default function Login() {
     if (!validation.valid) {
       showAlert({ type: 'danger', message: validation.message! });
     }
-    setIsSubmitting(true);
     try {
+      setIsSubmitting(true);
       const json = await apiFetch('/login', {
         method: "POST",
         headers: {

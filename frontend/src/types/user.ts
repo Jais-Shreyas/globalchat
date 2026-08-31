@@ -2,9 +2,12 @@ export type PublicUser = {
   _id: string;
   username: string;
   name: string;
-  photoURL: {
-    url: string;
-    publicId: string;
+  photo: {
+    fileId: string;
+    uploadId?: string;
+    name: string;
+    mimeType: string;
+    size: number;
   } | null;
 };
 

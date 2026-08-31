@@ -1,9 +1,13 @@
 export type Message = {
   message: string;
-  image: {
-    url: string;
-    publicId: string;
+
+  file: {
+    fileId: string;
+    name: string;
+    mimeType: string;
+    size: number;
   } | null;
+  
   username: string;
   userId: string;
   name: string;

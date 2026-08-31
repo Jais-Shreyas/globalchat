@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react'
 import { redirect, useNavigate, useParams } from 'react-router-dom';
 import { PrivateUser } from '../types/user';
 import { createNewContact } from '../helpers/chatHelper';
-import { apiFetch } from '../helpers/fetchHelper';
+import { apiFetch, getFileURL } from '../helpers/fetchHelper';
 import { ArrowBack, Image, Person } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useAlert } from '../contexts/AlertContext';
-import { getOptimizedImageUrl, uploadImage } from '../helpers/fileUpload';
+import { uploadFile } from '../helpers/fileUpload';
 
 export default function Profile() {
   const { username } = useParams<{ username: string }>();
@@ -16,8 +16,10 @@ export default function Profile() {
   const { user, setUser } = useAuth();
   const { showAlert } = useAlert();
   const navigate = useNavigate();
-  const [userData, setUserData] = useState<PrivateUser>({ name: "---", username: "---", email: "", _id: "", photoURL: null });
-  const [originalData, setOriginalData] = useState<PrivateUser>({ name: "---", username: "---", email: "", _id: "", photoURL: null });
+  const [userData, setUserData] = useState<PrivateUser>({ name: "Loading...", username: "Loading...", email: "", _id: "", photo: null });
+  const [originalData, setOriginalData] = useState<PrivateUser>({ name: "Loading...", username: "Loading...", email: "", _id: "", photo: null });
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
   const [isEditing, toggleEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -42,6 +44,7 @@ export default function Profile() {
   }
   const handleCancel = () => {
     setUserData(originalData);
+    setLocalPreviewUrl(null);
     toggleEditing(false);
   }
 
@@ -68,8 +71,13 @@ export default function Profile() {
     if (!file) return;
     try {
       setIsUploadingImage(true);
-      const data = await uploadImage(file);
-      setUserData(prev => ({ ...prev, photoURL: { url: getOptimizedImageUrl(data.url, 120, 120), publicId: data.publicId } }));
+
+      // Show local preview immediately
+      const previewUrl = URL.createObjectURL(file);
+      setLocalPreviewUrl(previewUrl);
+
+      const data = await uploadFile(file);
+      setUserData(prev => ({ ...prev, photo: data }));
     } catch (err) {
       console.error(err);
       showAlert({
@@ -95,13 +103,30 @@ export default function Profile() {
     if (userData.username !== originalData.username) {
       payload.username = userData.username;
     }
-    if (userData.photoURL?.url !== originalData.photoURL?.url) {
-      payload.photoURL = userData.photoURL;
+
+    if (userData.photo?.fileId !== originalData.photo?.fileId) {
+      if (userData.photo?.uploadId) {
+        const completed = await apiFetch(`/files/upload/${userData.photo.uploadId}/complete`, {
+          method: 'POST',
+        });
+
+        payload.photo = {
+          fileId: completed.id,
+          name: userData.photo.name,
+          mimeType: userData.photo.mimeType,
+          size: userData.photo.size,
+        };
+      } else {
+        payload.photo = userData.photo;
+      }
+      setLocalPreviewUrl(null);
     }
+
     if (Object.keys(payload).length === 0) {
       toggleEditing(false);
       return;
     }
+
     setIsSubmitting(true);
     try {
       const data = await apiFetch(`/profile`, {
@@ -116,6 +141,12 @@ export default function Profile() {
       setUserData(data.user);
       setOriginalData(data.user);
       setUser(data.user);
+      if (data.user.photo?.fileId) {
+        const photoURL = await getFileURL(data.user.photo.fileId);
+        setProfilePhotoUrl(photoURL);
+      } else {
+        setProfilePhotoUrl(null);
+      }
       showAlert({ type: 'success', message: 'Details updates successfully' });
 
     } catch (e: any) {
@@ -134,6 +165,27 @@ export default function Profile() {
     }
   }
 
+  useEffect(() => {
+    const loadProfilePhoto = async () => {
+      const fileId = userData.photo?.fileId;
+
+      if (!fileId) {
+        setProfilePhotoUrl(null);
+        return;
+      }
+
+      try {
+        const url = await getFileURL(fileId);
+        setProfilePhotoUrl(url);
+      } catch (error) {
+        console.error("Failed to load profile photo:", error);
+        setProfilePhotoUrl(null);
+      }
+    };
+
+    loadProfilePhoto();
+  }, [userData.photo?.fileId]);
+
   return (
     <section className="w-100 px-4 py-5" style={{ borderRadius: '.5rem .5rem 0 0' }} >
       <div className="row d-flex justify-content-center">
@@ -142,49 +194,86 @@ export default function Profile() {
             <div className="card-body p-4">
               <button className="btn text-dark" onClick={navigateBack} title='Back'><ArrowBack /></button>
               <div className="d-flex w-100 justify-content-center tex-center mx-1 mb-4 mt-2">
-                <div className="flex-shrink-0"
-                  style={{ position: "relative", display: "inline-block" }}
+                <div
+                  style={{
+                    position: "relative",
+                    display: "inline-block",
+                  }}
                 >
                   <img
-                    src={userData.photoURL?.url || "/defaultDP.jpg"}
-                    alt="Profile URL" className="img-fluid" style={{
-                      border: '1px solid grey',
-                      width: '8rem',
-                      height: '8rem',
-                      objectFit: 'cover',
-                      borderRadius: '10px'
+                    src={localPreviewUrl || profilePhotoUrl || "/defaultDP.jpg"}
+                    alt="Profile"
+                    style={{
+                      width: "8rem",
+                      height: "8rem",
+                      objectFit: "cover",
+                      borderRadius: "50%",
+                      border: "1px solid grey",
                     }}
                     onError={(e) => {
                       e.currentTarget.src = "/defaultDP.jpg";
                     }}
                   />
 
-                  {originalData.photoURL && isEditing && (
+                  {isEditing && (
+                    <label
+                      htmlFor="profile-photo-input"
+                      title="Change profile photo"
+                      style={{
+                        position: "absolute",
+                        bottom: "4px",
+                        right: "4px",
+                        width: "36px",
+                        height: "36px",
+                        borderRadius: "50%",
+                        backgroundColor: "white",
+                        border: "1px solid #ccc",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        boxShadow: "0 2px 5px rgba(0,0,0,0.25)",
+                      }}
+                    >
+                      <Image fontSize="small" />
+
+                      <input
+                        id="profile-photo-input"
+                        type="file"
+                        hidden
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                      />
+                    </label>
+                  )}
+
+                  {isEditing && userData.photo && (
                     <button
                       type="button"
                       aria-label="Remove profile image"
+                      title="Remove profile photo"
                       onClick={() => {
                         setUserData({
                           ...userData,
-                          photoURL: null,
-                        })
+                          photo: null,
+                        });
+                        setLocalPreviewUrl(null);
                       }}
                       style={{
                         position: "absolute",
-                        top: "0",
-                        right: "0",
+                        top: "4px",
+                        right: "4px",
                         width: "24px",
                         height: "24px",
                         border: "none",
                         borderRadius: "50%",
-                        background: "rgba(0,0,0,0.8)",
+                        background: "rgba(0,0,0,0.75)",
                         color: "white",
-                        cursor: "pointer",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: "14px",
-                        lineHeight: 1,
+                        cursor: "pointer",
+                        padding: 0,
                       }}
                     >
                       ×
@@ -201,10 +290,6 @@ export default function Profile() {
                       <div className="input-group mb-1">
                         <span className="input-group-text" id="basic-addon1"><Person /></span>
                         <input value={userData.username} onChange={handleCredUpdate} type="text" name="username" className="form-control" placeholder="Username" aria-label="username" aria-describedby="username" />
-                      </div>
-                      <div className="input-group mb-1">
-                        <span className="input-group-text" id="basic-addon1"><Image /></span>
-                        <input onChange={handleImageUpload} type="file" accept="image/*" name="photoURL" className="form-control" placeholder="Link to the DP image" aria-label="photoURL" aria-describedby="photoURL" />
                       </div>
                     </div>
                   ) : (

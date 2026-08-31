@@ -2,9 +2,11 @@ export type Contact = {
   name: string;
   type: 'global' | 'private' | 'group';
   username: string | null;
-  photoURL: {
-    url: string;
-    publicId: string;
+  photo: {
+    fileId: string;
+    name: string;
+    mimeType: string;
+    size: number;
   } | null;
   conversationId: string;
   lastMessage: {

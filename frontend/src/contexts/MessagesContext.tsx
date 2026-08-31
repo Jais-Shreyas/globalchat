@@ -44,7 +44,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
     wsRef.current.onmessage = (event: MessageEvent) => {
       const data = JSON.parse(event.data);
       if (data.type === 'NEW_MESSAGE') {
-        const { message, image, username, name, createdAt, deletedAt, messageId, conversationId } = data;
+        const { message, file, username, name, createdAt, deletedAt, messageId, conversationId } = data;
         setContacts((prevContacts) => {
           const updatedContacts = prevContacts.map(contact => {
             if (contact.conversationId === conversationId) {
@@ -60,17 +60,17 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
           return updatedContacts;
         });
         if (activeContact && conversationId === activeContact.conversationId) {
-          setMessages((prevMessages) => [...prevMessages, { message, image, username, name, createdAt, editedAt: null, deletedAt: null, _id: messageId, userId: data.userId }]);
+          setMessages((prevMessages) => [...prevMessages, { message, file, username, name, createdAt, editedAt: null, deletedAt: null, _id: messageId, userId: data.userId }]);
         }
       } else if (data.type === 'UPDATE_MESSAGE') {
-        const { message, image, messageId, editedAt } = data;
+        const { message, file, messageId, editedAt } = data;
         if (activeContact && data.conversationId === activeContact.conversationId) {
-          setMessages((prevMessages) => prevMessages.map(msg => msg._id === messageId ? { ...msg, message, image, editedAt } : msg));
+          setMessages((prevMessages) => prevMessages.map(msg => msg._id === messageId ? { ...msg, message, file, editedAt } : msg));
         }
       } else if (data.type === 'DELETE_MESSAGE') {
-        const { messageId, conversationId, message, deletedAt } = data;
+        const { messageId, file, conversationId, message, deletedAt } = data;
         if (activeContact && conversationId === activeContact.conversationId) {
-          setMessages((prevMessages) => prevMessages.map(msg => msg._id === messageId ? { ...msg, message, deletedAt } : msg));
+          setMessages((prevMessages) => prevMessages.map(msg => msg._id === messageId ? { ...msg, message, file, deletedAt } : msg));
         }
       } else if (data.type === 'NEW_CONTACT') {
         const { contact, creatorId } = data;

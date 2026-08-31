@@ -4,16 +4,18 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SwipeUpIcon from '@mui/icons-material/SwipeUp';
+import { Download } from "@mui/icons-material";
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { MoreVert } from "@mui/icons-material";
 import { Message } from "../types/Message";
-import { apiFetch } from "../helpers/fetchHelper";
+import { apiFetch, getFileURL } from "../helpers/fetchHelper";
 import { useAuth } from "../contexts/AuthContext";
 import { useContacts } from "../contexts/ContactContext";
 import { useWebSocket } from "../contexts/WebSocketContext";
 import { useMessages } from "../contexts/MessagesContext";
 import { useAlert } from "../contexts/AlertContext";
+import '../styles/ChatWindow.css'
 
 type ChatWindowProps = {
   dark: boolean;
@@ -21,6 +23,14 @@ type ChatWindowProps = {
   isMobile: boolean;
   setMobileView: (view: 'contacts' | 'chat') => void;
 }
+
+type FileProp = {
+  fileId: string,
+  uploadId?: string,
+  name: string,
+  mimeType: string,
+  size: number;
+} | null;
 
 export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: ChatWindowProps) {
   const navigate = useNavigate();
@@ -31,6 +41,8 @@ export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: 
   const { messages } = useMessages();
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const [fileUrls, setFileUrls] = useState<Record<string, string>>({});
+  const [activeContactPhotoURL, setActiveContactPhotoURL] = useState<string>('');
   const [scroll, setScroll] = useState(true);
   const [inputHeight, setInputHeight] = useState<number>(72);
   const scrollToBottom = () => {
@@ -52,16 +64,39 @@ export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: 
   }, [activeContact]);
 
   const [inputMessage, setInputMessage] = useState<{ msg: string, _id: string | null }>({ msg: '', _id: null });
-  const [image, setImage] = useState<{ url: string, publicId: string } | null>(null);
-  const sendMessage = () => {
+  const [file, setFile] = useState<FileProp>(null);
+
+  const sendMessage = async () => {
     try {
+      let completedFile = file;
+      if (file && !inputMessage._id) {
+        const completed = await apiFetch(
+          `/files/upload/${file.uploadId}/complete`,
+          {
+            method: 'POST',
+          }
+        );
+
+        completedFile = { ...file, fileId: completed.id, };
+      }
       if (!inputMessage._id) {
-        wsRef.current?.send(JSON.stringify({ type: 'NEW_MESSAGE', message: inputMessage.msg.trim(), image, conversationId: activeContact?.conversationId }));
+        wsRef.current?.send(JSON.stringify({
+          type: 'NEW_MESSAGE',
+          message: inputMessage.msg.trim(),
+          file: completedFile,
+          conversationId: activeContact?.conversationId
+        }));
       } else {
-        wsRef.current?.send(JSON.stringify({ type: 'UPDATE_MESSAGE', message: inputMessage.msg.trim(), image, messageId: inputMessage._id, conversationId: activeContact?.conversationId }));
+        wsRef.current?.send(JSON.stringify({
+          type: 'UPDATE_MESSAGE',
+          message: inputMessage.msg.trim(),
+          file: completedFile,
+          messageId: inputMessage._id,
+          conversationId: activeContact?.conversationId
+        }));
       }
       setInputMessage({ msg: '', _id: null });
-      setImage(null);
+      setFile(null);
     } catch (e) {
       console.error(e);
       showAlert({ type: 'danger', message: 'Could not send message' });
@@ -69,12 +104,56 @@ export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: 
   }
   const deleteChat = async (_id: string) => {
     try {
-      wsRef.current?.send(JSON.stringify({ type: 'DELETE_MESSAGE', messageId: _id, conversationId: activeContact?.conversationId }));
+      wsRef.current?.send(JSON.stringify({
+        type: 'DELETE_MESSAGE',
+        messageId: _id,
+        conversationId: activeContact?.conversationId
+      }));
     } catch (e) {
       console.error(e);
       showAlert({ type: 'danger', message: 'Could not delete message' });
     }
   };
+
+  useEffect(() => {
+    const loadFileUrls = async () => {
+      const imageFiles = messages.filter((msg) =>
+        msg.file &&
+        msg.file.mimeType.startsWith("image/") &&
+        !fileUrls[msg.file.fileId]
+      );
+
+      for (const msg of imageFiles) {
+        if (!msg.file) continue;
+
+        try {
+          const fileURL = await getFileURL(msg.file.fileId);
+          setFileUrls((prev) => ({
+            ...prev,
+            [msg.file!.fileId]: fileURL,
+          }));
+        } catch (error) {
+          console.error(
+            `Failed to load file ${msg.file.fileId}:`,
+            error
+          );
+        }
+      }
+    };
+
+    if (messages.length > 0) {
+      loadFileUrls();
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    const getActiveContactPhotoURL = async () => {
+      if (!activeContact?.photo?.fileId) return;
+      const photoURL = await getFileURL(activeContact?.photo?.fileId);
+      setActiveContactPhotoURL(photoURL);
+    }
+    getActiveContactPhotoURL();
+  }, [activeContact])
 
   const showTime = (date: Date) => {
     const GetTime = () => {
@@ -123,10 +202,64 @@ export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: 
     }
   }
 
+  const downloadFile = async (file: FileProp) => {
+    if (!file) {
+      showAlert({
+        type: 'danger',
+        message: 'Download not possible',
+      });
+      return;
+    }
+
+    try {
+      const fileURL = await getFileURL(file.fileId);
+      const response = await fetch(fileURL);
+      if (!response.ok) {
+        throw new Error('Failed to download file');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = file.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+    } catch (error: any) {
+      console.error('Download failed:', error);
+
+      showAlert({ type: 'danger', message: error.message || 'Cannot download file', });
+    }
+  };
+
+  const displayFileSize = (size: number) => {
+    if (size < 1024) {
+      return `${size}B`;
+    } else if (size < 1024 * 1024) {
+      return `${(size / 1024).toFixed(2)}KB`;
+    } else {
+      return `${(size / 1024 / 1024).toFixed(2)}MB`;
+    }
+  }
+
+  const getFileTypeLabel = (mimeType: string) => {
+    if (mimeType.startsWith('image/')) return 'Image';
+    if (mimeType.startsWith('video/')) return 'Video';
+    if (mimeType.startsWith('audio/')) return 'Audio';
+    if (mimeType === 'application/pdf') return 'PDF';
+    if (mimeType.includes('word')) return 'Word document';
+    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'Spreadsheet';
+    if (mimeType.includes('zip')) return 'ZIP archive';
+    if (mimeType.startsWith('text/')) return 'Text file';
+    return 'File';
+  };
+
   if (!activeContact) {
     return null;
   }
-
 
   return (
     <>
@@ -171,7 +304,7 @@ export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: 
             >
               <img
                 className="align-self-center mx-2 my-1"
-                src={activeContact.photoURL?.url || (activeContact.type === 'private' ? "/defaultDP.jpg" : "/defaultGroupDP.png")}
+                src={activeContactPhotoURL || (activeContact.type === 'private' ? "/defaultDP.jpg" : "/defaultGroupDP.png")}
                 alt={activeContact.name}
                 style={{ width: '2rem', height: '2rem', borderRadius: '50%', objectFit: 'cover', marginRight: '1rem' }}
                 onError={(e) => {
@@ -257,7 +390,7 @@ export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: 
                         style={{ minWidth: '6rem' }}
                         onClick={() => {
                           setInputMessage({ msg: msg.message, _id: msg._id });
-                          setImage(msg.image || null);
+                          setFile(msg.file || null);
                           focusRef?.current?.focus()
                         }}
                       >
@@ -276,7 +409,7 @@ export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: 
                     </ul>
                   </div>
                 }
-                <div key={msg._id} style={{...style, maxWidth: msg.image ? 'min(70%, 520px)' : '70%'}} className={`${msg.username === user!.username ? 'user' : 'notuser'} ${dark ? 'bg-light text-dark' : 'bg-dark text-light'} mt-0`}>
+                <div key={msg._id} style={{ ...style, maxWidth: msg.file ? 'min(70%, 520px)' : '70%' }} className={`${msg.username === user!.username ? 'user' : 'notuser'} ${dark ? 'bg-light text-dark' : 'bg-dark text-light'} mt-0`}>
                   {activeContact?.type !== 'private' &&
                     <Link to={`/profile/${msg.username}`} style={{ textDecoration: 'none', color: 'grey', textAlign: msg.username !== user!.username ? 'left' : 'left', display: 'block' }}>
                       <div
@@ -294,15 +427,114 @@ export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: 
                     overflowWrap: 'anywhere',
                     fontFamily: 'inherit',
                     color: msg.deletedAt ? 'grey' : (dark ? 'black' : 'white'),
-                    paddingBottom: msg.image && !msg.message ? '1.5rem' : '0.5rem',
+                    paddingBottom: msg.file && !msg.message ? '1.5rem' : '0.5rem',
                   }}>
-                    {msg.image &&
-                      <img
-                        src={msg.image.url}
-                        alt="sent image"
-                        style={{ maxWidth: '100%', borderRadius: '0.5rem', marginTop: '0.5rem', marginBottom: msg.message ? '0.5rem' : '0' }}
-                      />
-                    }
+                    {msg.file && (msg.file.mimeType.startsWith("image/") ? (
+                      fileUrls[msg.file.fileId] ? (
+                        <div
+                          style={{
+                            position: 'relative',
+                            display: 'inline-block',
+                            maxWidth: '100%',
+                            marginTop: '0.5rem',
+                            marginBottom: msg.message ? '0.5rem' : '0',
+                          }}
+                          className="image-container"
+                        >
+                          <img
+                            src={fileUrls[msg.file.fileId]}
+                            alt={msg.file.name}
+                            style={{
+                              maxWidth: '100%',
+                              borderRadius: '0.5rem',
+                              display: 'block',
+                            }}
+                          />
+
+                          <button
+                            onClick={() => downloadFile(msg.file!)}
+                            className="image-download-btn"
+                            title="Download image"
+                            aria-label={`Download ${msg.file.name}`}
+                          >
+                            <Download fontSize="small" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            marginTop: '0.5rem',
+                            marginBottom: msg.message ? '0.5rem' : '0',
+                            fontStyle: 'italic',
+                            color: 'gray',
+                            userSelect: 'none'
+                          }}
+                        >
+                          Loading image...
+                        </div>
+                      )
+                    ) : (
+                      <div
+                        style={{
+                          display: 'flex',
+                          border: 'solid 1px grey',
+                          background: '#eeefef',
+                          borderRadius: '4px',
+                          paddingRight: '5px',
+                          marginTop: '5px',
+                          maxWidth: '100%',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => downloadFile(msg.file)}
+                        role="button"
+                        title="Download file"
+                        aria-label={`Download ${msg.file.name}`}
+                      >
+                        <div
+                          className="btn btn-sm p-1"
+                          style={{
+                            flexShrink: 0,
+                            alignSelf: 'center',
+                          }}
+                        >
+                          <Download fontSize="small" />
+                        </div>
+
+                        <div
+                          style={{
+                            minWidth: 0,
+                            flex: 1,
+                            overflow: 'hidden',
+                            padding: '0.5rem 0 0.5rem 0.25rem',
+                          }}
+                        >
+                          <div
+                            style={{
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              fontWeight: 'bolder',
+                            }}
+                            title={msg.file.name}
+                          >
+                            {msg.file.name}
+                          </div>
+
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              fontSize: '0.9rem',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {displayFileSize(msg.file.size)}
+                            &nbsp;•&nbsp;
+                            {getFileTypeLabel(msg.file.mimeType)}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                     <Markdown children={(msg.message)} />
                   </div>
                   <small
@@ -324,7 +556,7 @@ export default function ChatWindow({ dark, focusRef, isMobile, setMobileView }: 
           <div key='endref' ref={messagesEndRef} />
         </div >
       </div>
-      <Input dark={dark} isMobile={isMobile} focusRef={focusRef} inputMessage={inputMessage} setInputMessage={setInputMessage} sendMessage={sendMessage} image={image} setImage={setImage} setInputHeight={setInputHeight} />
+      <Input dark={dark} isMobile={isMobile} focusRef={focusRef} inputMessage={inputMessage} setInputMessage={setInputMessage} sendMessage={sendMessage} file={file} setFile={setFile} setInputHeight={setInputHeight} />
     </>
   )
 }

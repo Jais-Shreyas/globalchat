@@ -23,13 +23,27 @@ const conversationSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'Message'
     },
-    photoURL: {
+    photo: {
       type: {
-        url: String,
-        publicId: String,
+        fileId: {
+          type: String,
+          required: true,
+        },
+        name: {
+          type: String,
+          required: true,
+        },
+        mimeType: {
+          type: String,
+          required: true,
+        },
+        size: {
+          type: Number,
+          required: true,
+        },
       },
       default: null
-    }
+    },
   },
   {
     timestamps: true

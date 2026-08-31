@@ -10,33 +10,33 @@ const router = express.Router();
 router.get('/contacts', authenticate, async (req, res) => {
   try {
     const conversations = await Conversation.find({ participants: req._id })
-      .populate('participants', 'username name photoURL')
+      .populate('participants', 'username name photo')
       .populate({
         path: 'lastMessage',
         select: 'message sender createdAt updatedAt deletedAt',
         populate: { path: 'sender', select: 'username name' }
       })
-      .select('type name photoURL participants');
+      .select('type name photo participants');
     const userContacts = conversations.map(conv => {
       let contactInfo;
       if (conv.type === 'global') {
         contactInfo = {
           name: 'Global Chat',
           username: null,
-          photoURL: conv.photoURL
+          photo: conv.photo
         };
       } else if (conv.type === 'group') {
         contactInfo = {
           name: conv.name,
           username: null,
-          photoURL: conv.photoURL
+          photo: conv.photo
         };
       } else {
         const otherParticipant = conv.participants.find(participant => participant._id.toString() !== req._id);
         contactInfo = {
           name: otherParticipant.name,
           username: otherParticipant.username,
-          photoURL: otherParticipant.photoURL,
+          photo: otherParticipant.photo,
         };
       }
       return {
@@ -90,7 +90,7 @@ router.post('/contacts/new', authenticate, async (req, res) => {
           contact: {
             name: otherUser.name,
             username: otherUser.username,
-            photoURL: otherUser.photoURL,
+            photo: otherUser.photo,
             conversationId: conversation._id,
             type: 'private'
           },
@@ -101,7 +101,7 @@ router.post('/contacts/new', authenticate, async (req, res) => {
           contact: {
             name: user.name,
             username: user.username,
-            photoURL: user.photoURL,
+            photo: user.photo,
             conversationId: conversation._id,
             type: 'private'
           },
@@ -131,7 +131,7 @@ router.post('/contacts/new', authenticate, async (req, res) => {
         contact: {
           name: groupConversation.name,
           username: null,
-          photoURL: null,
+          photo: null,
           conversationId: groupConversation._id,
           type: 'group'
         },
@@ -143,7 +143,7 @@ router.post('/contacts/new', authenticate, async (req, res) => {
         contact: {
           name: groupConversation.name,
           username: null,
-          photoURL: null,
+          photo: null,
           conversationId: groupConversation._id,
           type: 'group'
         },
@@ -165,11 +165,11 @@ router.get('/chats/:conversationId', authenticate, async (req, res) => {
   try {
     const chats = await Message.find({ conversation: conversationId })
       .populate('sender', 'username name')
-      .select('message image createdAt editedAt deletedAt');
+      .select('message file createdAt editedAt deletedAt');
     const formatted = chats.map(chat => ({
       _id: chat._id,
       message: chat.message,
-      image: chat.image,
+      file: chat.file,
       username: chat.sender.username,
       userId: chat.sender._id,
       name: chat.sender.name,

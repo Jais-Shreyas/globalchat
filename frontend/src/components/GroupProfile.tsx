@@ -1,40 +1,46 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { apiFetch } from "../helpers/fetchHelper";
+import { apiFetch, getFileURL } from "../helpers/fetchHelper";
 import { GroupData } from "../types/GroupData";
 import { AddModerator, ArrowBack, Cancel, Close, Edit, Image, Info, PersonAdd, PersonAddAlt1Outlined, PersonAddDisabled, PersonAddOutlined, PersonRemoveOutlined, RemoveModerator, SaveOutlined, Shield } from "@mui/icons-material";
 import { PublicUser } from "../types/user";
 import { useAuth } from "../contexts/AuthContext";
 import { useAlert } from "../contexts/AlertContext";
-import { getOptimizedImageUrl, uploadImage } from "../helpers/fileUpload";
+import { uploadFile } from "../helpers/fileUpload";
 
 export default function GroupProfile() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { showAlert } = useAlert();
   const { conversationId } = useParams<{ conversationId: string }>();
-  const [groupData, setGroupData] = useState<GroupData>({ name: '', type: 'group', memberList: [], admins: [], _id: '', photoURL: null });
-  const [originalData, setOriginalData] = useState<GroupData>({ name: '', type: 'group', memberList: [], admins: [], _id: '', photoURL: null });
+  const [groupData, setGroupData] = useState<GroupData>({ name: '', type: 'group', memberList: [], admins: [], _id: '', photo: null });
+  const [originalData, setOriginalData] = useState<GroupData>({ name: '', type: 'group', memberList: [], admins: [], _id: '', photo: null });
+  const [groupPhotoUrl, setGroupPhotoUrl] = useState<string | null>(null);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
+
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [myContacts, setMyContacts] = useState<PublicUser[]>([]);
   const [isAddingContacts, setIsAddingContacts] = useState<boolean>(false);
   const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
 
+  const [memberPhotoUrls, setMemberPhotoUrls] = useState<Record<string, string>>({});
+  const [contactPhotoUrls, setContactPhotoUrls] = useState<Record<string, string>>({});
+
   useEffect(() => {
     const fetchConversationData = async () => {
       try {
         const data = await apiFetch(`/group/${conversationId}`);
         const group = data.group;
+
         const groupData: GroupData = {
           type: group.type,
           name: group.name,
-          photoURL: group.photoURL || null,
+          photo: group.photo || null,
           memberList: group.participants,
           admins: group.admins,
-          _id: group._id  
+          _id: group._id
         };
-        console.log("Fetched group data: ", groupData);
 
         groupData.memberList?.sort((a, b) => {
           if (a._id === user?._id) return -1;
@@ -42,8 +48,27 @@ export default function GroupProfile() {
           return a.name.localeCompare(b.name);
         });
 
-        setGroupData(groupData);
         setOriginalData(groupData);
+        setGroupData(groupData);
+
+        for (const member of groupData.memberList || []) {
+          if (!member.photo?.fileId) continue;
+
+          try {
+            const fileURL = await getFileURL(member.photo.fileId);
+
+            setMemberPhotoUrls((prev) => ({
+              ...prev,
+              [member.photo!.fileId]: fileURL,
+            }));
+          } catch (error) {
+            console.error(
+              `Failed to load file ${member.photo.fileId}:`,
+              error
+            );
+          }
+        }
+
       } catch (err: any) {
         console.error("Conversation Fetch Error: ", err);
       }
@@ -53,6 +78,25 @@ export default function GroupProfile() {
       try {
         const data = await apiFetch('/myContacts');
         setMyContacts(data);
+
+        // Load contact photos using freshly fetched data
+        for (const contact of data) {
+          if (!contact.photo?.fileId) continue;
+
+          try {
+            const fileURL = await getFileURL(contact.photo.fileId);
+
+            setContactPhotoUrls((prev) => ({
+              ...prev,
+              [contact.photo!.fileId]: fileURL,
+            }));
+          } catch (error) {
+            console.error(
+              `Failed to load file ${contact.photo.fileId}:`,
+              error
+            );
+          }
+        }
       } catch (err: any) {
         console.error("Contacts Fetch Error: ", err);
       }
@@ -88,13 +132,14 @@ export default function GroupProfile() {
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    console.log("Selected file for upload: ", file);
     if (!file) return;
     try {
       setIsUploadingImage(true);
-      const data = await uploadImage(file);
-      console.log("Image uploaded successfully: ", data);
-      setGroupData(prev => ({ ...prev, photoURL: { url: getOptimizedImageUrl(data.url, 120, 120), publicId: data.publicId } }));
+      const data = await uploadFile(file);
+      // Show local preview immediately
+      const previewUrl = URL.createObjectURL(file);
+      setLocalPreviewUrl(previewUrl);
+      setGroupData(prev => ({ ...prev, photo: data }));
     } catch (err) {
       console.error(err);
       showAlert({
@@ -121,8 +166,26 @@ export default function GroupProfile() {
     }
     payload.memberList = groupData.memberList;
     payload.admins = groupData.admins;
-    if (groupData.photoURL?.url !== originalData.photoURL?.url) {
-      payload.photoURL = groupData.photoURL;
+    if (groupData.photo?.fileId !== originalData.photo?.fileId) {
+      payload.photo = groupData.photo;
+    }
+
+    if (groupData.photo?.fileId !== originalData.photo?.fileId) {
+      if (groupData.photo?.uploadId) {
+        const completed = await apiFetch(`/files/upload/${groupData.photo.uploadId}/complete`, {
+          method: 'POST',
+        });
+
+        payload.photo = {
+          fileId: completed.id,
+          name: groupData.photo.name,
+          mimeType: groupData.photo.mimeType,
+          size: groupData.photo.size,
+        };
+      } else {
+        payload.photo = groupData.photo;
+      }
+      setLocalPreviewUrl(null);
     }
     if (Object.keys(payload).length === 0) {
       setIsEditing(false);
@@ -137,10 +200,10 @@ export default function GroupProfile() {
         },
         body: JSON.stringify(payload)
       });
-      const { name, type, photoURL, admins, participants, _id } = data.group;
+      const { name, type, photo, admins, participants, _id } = data.group;
       const updatedGroup: GroupData = {
         name, type,
-        photoURL, _id,
+        photo, _id,
         admins,
         memberList: participants
       };
@@ -155,6 +218,14 @@ export default function GroupProfile() {
       setGroupData(updatedGroup);
       setIsEditing(false);
       setIsAddingContacts(false);
+      if (photo?.fileId) {
+        const photoData = await apiFetch(
+          `/files/${photo.fileId}/download-url`
+        );
+        setGroupPhotoUrl(photoData.downloadUrl);
+      } else {
+        setGroupPhotoUrl(null);
+      }
       showAlert({ type: 'success', message: 'Group updated successfully' });
 
     } catch (err: any) {
@@ -193,6 +264,30 @@ export default function GroupProfile() {
   const isGettingAdded = (contact: PublicUser) => {
     return groupData.memberList!.some(mem => mem._id === contact._id);
   }
+
+  useEffect(() => {
+    const loadProfilePhoto = async () => {
+      const fileId = groupData.photo?.fileId;
+
+      if (!fileId) {
+        setGroupPhotoUrl(null);
+        return;
+      }
+
+      try {
+        const data = await apiFetch(
+          `/files/${fileId}/download-url`
+        );
+
+        setGroupPhotoUrl(data.downloadUrl);
+      } catch (error) {
+        console.error("Failed to load profile photo:", error);
+        setGroupPhotoUrl(null);
+      }
+    };
+
+    loadProfilePhoto();
+  }, [groupData.photo?.fileId]);
 
   const navigateBack = () => {
     if (window.history.length > 1) {
@@ -245,81 +340,103 @@ export default function GroupProfile() {
                 }
               </div>
               <div className="text-center">
-                <div className="flex-shrink-0"
-                  style={{ position: "relative", display: "inline-block" }}
+                <div
+                  className="flex-shrink-0"
+                  style={{
+                    position: "relative",
+                    display: "inline-block",
+                  }}
                 >
                   <img
-                    src={groupData?.photoURL?.url || (originalData?.type === 'global' ? '/GlobalChatDP.png' : '/defaultGroupDP.png')}
-                    alt={originalData?.name || 'Group'}
+                    src={
+                      localPreviewUrl ||
+                      groupPhotoUrl ||
+                      (originalData?.type === "global"
+                        ? "/GlobalChatDP.png"
+                        : "/defaultGroupDP.png")
+                    }
+                    alt={originalData?.name || "Group"}
                     className="img-fluid mt-2"
                     style={{
-                      width: '150px',
-                      height: '150px',
-                      borderRadius: '50%',
-                      objectFit: 'cover'
+                      width: "150px",
+                      height: "150px",
+                      borderRadius: "50%",
+                      objectFit: "cover",
                     }}
                     onError={(e) => {
-                      if (originalData?.type === 'global') {
-                        e.currentTarget.src = "/GlobalChatDP.png";
-                      } else {
-                        e.currentTarget.src = "/defaultGroupDP.png";
-                      }
+                      e.currentTarget.src =
+                        originalData?.type === "global"
+                          ? "/GlobalChatDP.png"
+                          : "/defaultGroupDP.png";
                     }}
                   />
-                  <button
-                    type="button"
-                    hidden={!isEditing || originalData?.type === 'global' || !groupData.photoURL}
-                    aria-label="Remove profile image"
-                    onClick={() => {
-                      setGroupData({
-                        ...groupData,
-                        photoURL: null,
-                      })
-                    }}
-                    style={{
-                      position: "absolute",
-                      top: "0",
-                      right: "0",
-                      width: "24px",
-                      height: "24px",
-                      border: "none",
-                      borderRadius: "50%",
-                      background: "rgba(0,0,0,0.8)",
-                      color: "white",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "14px",
-                      lineHeight: 1,
-                    }}
-                  >
-                    ×
-                  </button>
-                  <div style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                  }}>
-                    <label className="upload-btn"
-                    hidden={!isEditing || originalData?.type === 'global' || isUploadingImage || groupData.photoURL ? true : false}
-                      tabIndex={0}
-                      style={{ border: "none" }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.currentTarget.querySelector("input")?.click();
-                        }
-                      }}>
+
+                  {isEditing && originalData?.type !== "global" && (
+                    <label
+                      htmlFor="group-photo-input"
+                      title="Change group photo"
+                      style={{
+                        position: "absolute",
+                        bottom: "4px",
+                        right: "4px",
+                        width: "36px",
+                        height: "36px",
+                        borderRadius: "50%",
+                        backgroundColor: "white",
+                        border: "1px solid #ccc",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        boxShadow: "0 2px 5px rgba(0,0,0,0.25)",
+                      }}
+                    >
+                      <Image fontSize="small" />
+
                       <input
+                        id="group-photo-input"
                         type="file"
                         hidden
                         accept="image/*"
                         onChange={handleImageUpload}
                       />
-                      <span style={{ fontSize: '4rem' }}>+</span>
                     </label>
-                  </div>
+                  )}
+
+                  {isEditing &&
+                    originalData?.type !== "global" &&
+                    groupData.photo && (
+                      <button
+                        type="button"
+                        aria-label="Remove group image"
+                        title="Remove group photo"
+                        onClick={() => {
+                          setGroupData({
+                            ...groupData,
+                            photo: null,
+                          });
+                          setLocalPreviewUrl(null);
+                        }}
+                        style={{
+                          position: "absolute",
+                          top: "4px",
+                          right: "4px",
+                          width: "24px",
+                          height: "24px",
+                          border: "none",
+                          borderRadius: "50%",
+                          background: "rgba(0,0,0,0.75)",
+                          color: "white",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    )}
                 </div>
                 {isEditing ? (
                   <div className="mt-1 d-flex justify-content-center">
@@ -365,7 +482,7 @@ export default function GroupProfile() {
                           }
                         }}
                       >
-                        <img src={member.photoURL?.url || '/defaultDP.jpg'}
+                        <img src={member.photo?.fileId ? memberPhotoUrls[member.photo?.fileId] : '/defaultDP.jpg'}
                           alt="Member profile photo"
                           style={{
                             height: '40px',
@@ -473,7 +590,7 @@ export default function GroupProfile() {
                           const isAdded = isGettingAdded(contact);
                           return (
                             <div key={contact._id} className="col-md-6 col-xxl-4 d-flex align-items-center px-1 border-bottom border-start rounded shadow-sm py-1 mb-1">
-                              <img src={contact.photoURL?.url || '/defaultDP.jpg'}
+                              <img src={contact.photo?.fileId ? contactPhotoUrls[contact.photo.fileId] : '/defaultDP.jpg'}
                                 alt="Contact profile photo"
                                 style={{
                                   height: '40px',

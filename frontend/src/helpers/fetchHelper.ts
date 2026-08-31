@@ -33,3 +33,12 @@ export const apiFetch = async (url: string, options: RequestInit = {}) => {
 
   return data;
 };
+
+export const getFileURL = async (fileId: string) => {
+  try {
+    const data = await apiFetch(`/files/${fileId}/download-url`);
+    return data.downloadUrl;
+  } catch (e) {
+    throw new Error('File is no longer available to downlaod');
+  }
+}

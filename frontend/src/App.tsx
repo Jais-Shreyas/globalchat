@@ -1,6 +1,6 @@
 import './App.css'
 import { createBrowserRouter as Router, RouterProvider } from 'react-router-dom'
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Navbar from './components/Navbar'
 import About from './components/About';
 import Login from './components/Login';
@@ -13,10 +13,12 @@ import type { PrivateUser } from './types/user'
 import { apiFetch } from './helpers/fetchHelper';
 import { useAuth } from './contexts/AuthContext';
 import { useTheme } from './contexts/ThemeContext';
+import { waitForBackend } from './helpers/backendHealth';
 
 function App() {
   const { user, setUser } = useAuth();
-    const {dark, changeMode} = useTheme();
+  const { dark, changeMode } = useTheme();
+  const [isInitializing, setIsInitializing] = useState(true);
   const initialFetchUser = async (): Promise<PrivateUser | null> => {
     try {
       const data = await apiFetch('/me');
@@ -29,13 +31,30 @@ function App() {
   useEffect(() => {
     let mounted = true;
 
-    const fetchUser = async () => {
-      const fetchedUser = await initialFetchUser();
-      if (mounted) setUser(fetchedUser);
-    };
-    fetchUser();
+    const initializeApp = async () => {
+      const ready = await waitForBackend();
 
-    return () => { mounted = false; };
+      if (!ready) {
+        if (mounted) {
+          setIsInitializing(false);
+          setUser(null);
+        }
+        return;
+      }
+
+      const fetchedUser = await initialFetchUser();
+
+      if (mounted) {
+        setUser(fetchedUser);
+        setIsInitializing(false);
+      }
+    };
+
+    initializeApp();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -45,6 +64,28 @@ function App() {
       document.body.style.backgroundColor = "#f8f9fa";
     }
   }, [dark])
+
+  if (isInitializing) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'column',
+          gap: '10px',
+          color: 'white'
+        }}
+      >
+        <div className="spinner-border" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+
+        <div>Connecting to GlobalChat . . .</div>
+      </div>
+    );
+  }
 
   const router = Router([
     {
